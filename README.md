@@ -1,141 +1,185 @@
-# fivesim — The Sims 4 agent bridge
+<div align="center">
 
-Let LLM agents **play The Sims 4 on your own PC**, controlled **from inside the
-game**: click a Sim → **5imulites ▸ Let AI play this Sim**, and that Sim starts
-living on its own — reading its needs, deciding with a real model, and acting in
-the game. `fivesim` is an open-source script mod that reads ground-truth Sim
-state, performs actions in-game, and gives you a pie-menu button + console
-commands to wire it all up.
+# 🎮 fivesim — let AI play your Sims
 
-It's the eyes-and-hands of the [5imulites](https://x.com/5imulites) experiment
-(five models living five lives), and works standalone for anyone.
+**A free mod that hands your Sims over to AI language models** (GPT, Claude,
+Gemini, DeepSeek, Qwen). Click a Sim → *"Let AI play this Sim"* → it starts
+living on its own: going to work, eating, socialising, spending money — all
+decided by a real AI model, while you watch.
 
-> **Why a host?** The Sims 4 Python runtime is locked-down and **can't make HTTPS
-> calls** — so, like every AI-Sims mod, the LLM call runs in a small local **host**
-> (the "sidecar"). The mod talks plain HTTP to it on `127.0.0.1`; the host makes
-> the real OpenRouter call and drives your Sim through this bridge. Reasoning is
-> never faked — it's a real call to each agent's model.
+Part of the [5imulites](https://x.com/5imulites) project · works on its own too.
 
-```
-  pie-menu / commands ─┐                       ┌─ reads /state, posts /dispatch
-                       ▼                        ▼
-┌──────────────────────────┐  HTTP 127.0.0.1  ┌────────────────────────────────┐
-│  The Sims 4 + fivesim mod │ ───────────────▶ │  5imulites host (the sidecar)   │
-│  • bridge :8123           │ ◀─────────────── │  • holds your OpenRouter key     │
-│  • button + console cmds  │   config/start   │  • HTTPS → OpenRouter (the brain)│
-└──────────────────────────┘                  └────────────────────────────────┘
-```
+</div>
 
-## Build
+---
 
-The Sims 4 embeds **CPython 3.7**. Build with 3.7 for the matching `.pyc`; any
-Python 3 works. One command builds everything:
+## ✅ What you need
 
+| | |
+|---|---|
+| 🎯 **The Sims 4** | any recent version, on Windows |
+| 🐍 **Python 3** | only to build the mod once — [python.org](https://www.python.org/downloads/) |
+| 📚 **Sims4CommunityLibrary** | free, required for the in-game button — [download](https://github.com/ColonolNutty/Sims4CommunityLibrary/releases) |
+| 🧠 **The 5imulites host app** | the "brain" that talks to the AI. Runs on your PC and holds your API key |
+| 🔑 **An OpenRouter API key** | one key for all 5 models — get one at [openrouter.ai](https://openrouter.ai/settings/keys) |
+
+> **Why a separate "host"?** The Sims 4 can't safely talk to the internet from
+> inside the game, so a tiny companion app on your PC makes the AI calls for it.
+> (Every AI-Sims mod works this way.) The mod and the host only talk to each
+> other on your own computer.
+
+---
+
+## 🚀 Quick start
+
+**1 · Get the mod**
+Download this repo (green **Code → Download ZIP**) and unzip it, or:
 ```bash
+git clone https://github.com/mariwatts/fivesim.git
+```
+
+**2 · Build it**
+```bash
+cd fivesim
 python build.py
-# -> dist/fivesim.ts4script            (the mod)
-# -> dist/5imulites_interactions.package (the pie-menu button)
-# -> dist/5imulites_icons.package        (the logo icon)
+```
+This creates three files in the `dist/` folder:
+- `fivesim.ts4script` — the mod
+- `5imulites_interactions.package` — the in-game button
+- `5imulites_icons.package` — the logo icon
+
+**3 · Install into The Sims 4**
+Copy all three `dist/` files into:
+```
+Documents\Electronic Arts\The Sims 4\Mods\
+```
+Also download **Sims4CommunityLibrary** and drop its package in the same `Mods\` folder.
+
+**4 · Turn on mods in the game**
+Launch the game → **Settings → Game Options → Other** →
+☑ **Enable Custom Content and Mods** + ☑ **Script Mods Allowed** →
+**restart the game**. (Script mods only load after a restart.)
+
+**5 · Start the "brain" (host)**
+On the same PC, start the [5imulites host](https://x.com/5imulites)
+(`npm run dev` → opens `localhost:4000`). This is where your OpenRouter key lives
+and where the AI calls happen.
+
+**6 · Play**
+Load a household and enter the lot. Then **click a Sim**:
+- **5imulites ♦ Setup** → paste your OpenRouter key
+- **5imulites ♦ Let AI play this Sim** → the AI takes over 🎉
+- **5imulites ♦ Stop AI** → take control back
+
+That Sim now reads its own needs, asks its model what to do, and acts on it.
+
+---
+
+## 🕹️ No button? Use the cheat console
+
+If you skip Sims4CommunityLibrary, you can still drive everything from the cheat
+console (**Ctrl + Shift + C**):
+
+```
+fivesim.key sk-or-v1-…      ← paste your OpenRouter key
+fivesim.connect             ← link the host to this game
+fivesim.sims                ← shows each Sim and its id
+fivesim.map gpt 12345       ← give Sim 12345 to "gpt" (also: claude, gemini, deepseek, qwen)
+fivesim.start               ← AI starts playing
+fivesim.status              ← see what's running
+fivesim.stop                ← stop
 ```
 
-## Install (Windows)
+Type `fivesim.help` to see them all.
 
-Copy into `Documents\Electronic Arts\The Sims 4\Mods\` (≤1 subfolder deep):
+---
 
-1. `dist/fivesim.ts4script` — **required**.
-2. `dist/5imulites_interactions.package` — the **pie-menu button** (needs S4CL).
-3. `dist/5imulites_icons.package` — the logo icon (optional).
-4. [**Sims4CommunityLibrary**](https://github.com/ColonolNutty/Sims4CommunityLibrary)
-   into `Mods\` — required for the button + setup dialog. (Without it, the console
-   commands still do everything.)
+## 🔌 Quick "is it alive?" test (no host needed)
 
-Then in-game → **Settings → Game Options → Other** → enable **Custom Content and
-Mods** + **Script Mods Allowed** → **restart the game** → load a household.
-
-## Play (the button)
-
-Click any Sim. In the pie menu:
-
-- **5imulites ▸ Setup** — paste your OpenRouter API key (dialog).
-- **5imulites ▸ Let AI play this Sim** — hands that Sim to the next free model and
-  starts it. The Sim now lives on its own.
-- **5imulites ▸ Stop AI** — take control back.
-
-First, start the host (the sidecar) on the same PC: the
-[5imulites](https://x.com/5imulites) host (`npm run dev`, opens `localhost:4000`).
-That's where your key lives and where the HTTPS call to OpenRouter happens.
-
-## Play (console, no S4CL needed)
-
-Press **Ctrl+Shift+C** and type:
-
-```
-fivesim.key sk-or-v1-…         # set the OpenRouter key on the host
-fivesim.connect                # point the host at this game
-fivesim.sims                   # list your Sims + their sim_id
-fivesim.map gpt 12345          # map an agent to a Sim (gpt claude gemini deepseek qwen)
-fivesim.start                  # the AI takes over
-fivesim.status / fivesim.stop
-```
-
-`fivesim.help` lists everything.
-
-## Test the bridge directly (no host)
-
-While on a loaded lot:
+While you're on a loaded lot, open PowerShell:
 
 ```powershell
-curl http://127.0.0.1:8123/health      # {"ok":true,"service":"fivesim-bridge"}
-curl http://127.0.0.1:8123/state        # all Sims + sim_id + ground-truth state
+curl http://127.0.0.1:8123/health
+# {"ok":true,"service":"fivesim-bridge"}  ← the mod is running
+
+curl http://127.0.0.1:8123/state
+# lists your Sims with their needs, money, career…
+
+# give a Sim §5000 and watch the money jump on screen:
 curl.exe -X POST http://127.0.0.1:8123/dispatch -H "Content-Type: application/json" -d "{\"id\":\"t1\",\"action\":{\"type\":\"modify_funds\",\"sim_id\":<sim_id>,\"amount\":5000}}"
 ```
 
-## Bridge API
+If `/health` answers and the money changes — everything works. 🎉
+
+---
+
+## ❓ Troubleshooting
+
+**The pie-menu button doesn't show up.**
+Make sure both Sims4CommunityLibrary **and** `5imulites_interactions.package` are
+in `Mods\`, and that you restarted the game after enabling script mods. (The cheat
+commands always work even without the button.)
+
+**It says "host unreachable".**
+Start the host app (`npm run dev`) on the same PC first — that's the brain.
+
+**`curl /health` won't connect.**
+Script mods aren't enabled, you didn't restart, or you're still in the main menu —
+load into a lot. Check the `lastException` / `mod_logs` files in your
+`Documents\Electronic Arts\The Sims 4\` folder.
+
+**The logo icon doesn't appear.**
+Optional — the mod works fine without it. To force it, repackage `assets/logo.png`
+in Sims 4 Studio (type `0x2F7D0004`, instance `0x5130A1A1A1A10001`).
+
+**No Python?**
+You can also just zip the `fivesim` folder and rename it to `fivesim.ts4script`
+(keep the inner `fivesim\…` path). The packages need Python though.
+
+---
+
+## 🧠 How it works
+
+```
+   click a Sim / type a command ─┐                    ┌─ reads the Sim, sends actions
+                                 ▼                     ▼
+   ┌──────────────────────────────┐  localhost  ┌──────────────────────────────┐
+   │  The Sims 4  +  fivesim mod   │ ──────────▶ │  5imulites host (the brain)  │
+   │  • sees needs / money / job   │ ◀────────── │  • holds your API key         │
+   │  • performs the action        │             │  • asks the AI what to do     │
+   └──────────────────────────────┘             └──────────────────────────────┘
+```
+
+The mod is the **eyes and hands** inside the game; the host is the **brain** that
+calls the AI. The AI's reasoning is real — every decision is an actual call to
+that Sim's model.
+
+---
+
+## 🛠️ For developers
+
+The mod exposes a tiny local API (the "bridge") on `http://127.0.0.1:8123`:
 
 | Method · Path | Body | Returns |
 |---|---|---|
 | `GET /health` | — | `{ ok, service }` |
-| `GET /state[/:sim_id]` | — | ground-truth Sim state |
-| `POST /dispatch` | `{ id, action:{ type, sim_id, … } }` | executed result (`504` on 5s timeout) |
+| `GET /state[/:sim_id]` | — | ground-truth Sim state (needs, funds, career, relationships) |
+| `POST /dispatch` | `{ id, action:{ type, sim_id, … } }` | result of running it in-game |
 
-Action types: `console` (`{command}`), `modify_funds` (`{amount}`), `go_to_work`,
-`interaction` (`{interaction, target_sim_id?}` — key from the `ids.py` allow-list).
-
-## What's inside
+Action types: `console`, `modify_funds`, `go_to_work`, `interaction`
+(allow-listed in `fivesim/ids.py`).
 
 | File | Role |
 |---|---|
-| `fivesim/main_loop.py` | starts the bridge + drains commands on the main thread |
-| `fivesim/bridge_server.py` | background HTTP thread + thread-safe queue + handshake |
-| `fivesim/state_reader.py` | ground-truth JSON: motives, funds, skills, careers, relationships |
-| `fivesim/action_executor.py` | executes actions on the main thread |
-| `fivesim/interactions.py` | the pie-menu button (S4CL interactions) |
-| `fivesim/commands.py` | in-game console commands (no extra deps) |
-| `fivesim/ui.py` + `modidentity.py` | S4CL setup dialog + branded notifications |
-| `fivesim/host_client.py` | plain-HTTP client to the local host |
-| `build_interaction_package.py` | builds the pie-menu `.package` (tuning XML + STBL) |
-| `build_icon_package.py` | packages `assets/logo.png` as the in-game icon |
+| `fivesim/bridge_server.py` | the local HTTP bridge (background thread + safe main-thread queue) |
+| `fivesim/state_reader.py` | reads ground-truth Sim state |
+| `fivesim/action_executor.py` | performs actions on the game's main thread |
+| `fivesim/interactions.py` | the pie-menu button (Sims4CommunityLibrary) |
+| `fivesim/commands.py` | the cheat-console commands |
+| `fivesim/host_client.py` | talks to the local host |
+| `build*.py` | package the mod + button + icon |
 
-## Safety
-
-- Bridge is **loopback-only** (`127.0.0.1`) + optional `X-Bridge-Token`.
-- All game reads/writes run on the simulation **main thread**; only network I/O is
-  off-thread — the documented-safe TS4 pattern.
-- The in-game key is sent only to your local host, never bundled in the mod. Only
-  allow-listed interaction GUIDs are ever pushed.
-
-## Troubleshooting
-
-- **No pie-menu button** → install Sims4CommunityLibrary **and**
-  `5imulites_interactions.package`, then restart. If the tuning is still ignored,
-  rebuild it in Sims 4 Studio (interaction tuning type `0xE882D22F`, class
-  `FiveSimPlay`/`FiveSimSetup`/`FiveSimStop`, module `fivesim.interactions`). The
-  console commands work regardless.
-- **`fivesim.*` says "host unreachable"** → start the host (`npm run dev`) first.
-- **`/health` refuses to connect** → script mods not enabled, didn't restart, or
-  you're on the main menu (load a lot). Check `mod_logs` / `lastException`.
-- **Logo icon missing** → repackage `assets/logo.png` in Sims 4 Studio (PNG,
-  type `0x2F7D0004`, instance `0x5130A1A1A1A10001`). The mod works without it.
+Everything runs on `127.0.0.1` only; the key never leaves your PC.
 
 ## License
 
