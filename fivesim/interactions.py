@@ -10,11 +10,16 @@ from interactions.context import InteractionContext
 from sims4communitylib.classes.interactions.common_immediate_super_interaction import CommonImmediateSuperInteraction
 from sims4communitylib.classes.testing.common_test_result import CommonTestResult
 from sims4communitylib.classes.testing.common_execution_result import CommonExecutionResult
+# v3.x keeps the registry, handler base AND the CommonInteractionType enum all in
+# interaction_registration_service (verified against the shipping v3.21 pyc).
 from sims4communitylib.services.interactions.interaction_registration_service import (
     CommonInteractionRegistry,
     CommonScriptObjectInteractionHandler,
 )
-from sims4communitylib.enums.common_interaction_type import CommonInteractionType
+try:
+    from sims4communitylib.services.interactions.interaction_registration_service import CommonInteractionType
+except ImportError:  # very old S4CL kept it in enums
+    from sims4communitylib.enums.common_interaction_type import CommonInteractionType
 
 from .modidentity import ModInfo
 from .modinfo import (

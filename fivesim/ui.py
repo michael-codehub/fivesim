@@ -2,7 +2,11 @@
 # `fivesim.setup` — if S4CL isn't installed this module simply fails to import and
 # the console commands remain the fallback. All calls are wrapped defensively
 # because S4CL signatures vary slightly across versions.
-from sims4communitylib.dialogs.input_text_dialog import CommonInputTextDialog
+# module is named common_input_text_dialog in current S4CL (verified v3.21)
+try:
+    from sims4communitylib.dialogs.common_input_text_dialog import CommonInputTextDialog
+except ImportError:
+    from sims4communitylib.dialogs.input_text_dialog import CommonInputTextDialog
 from sims4communitylib.dialogs.choose_object_dialog import CommonChooseObjectDialog
 from sims4communitylib.notifications.common_basic_notification import CommonBasicNotification
 from ui.ui_dialog_picker import ObjectPickerRow
