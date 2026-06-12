@@ -42,29 +42,81 @@ GROUP_TUNING = 0x00000000
 GROUP_STBL = 0x00000000          # English STBL lives at group 0 (S4CL convention)
 
 
-def interaction_xml(class_name, s_id, key):
-    # Field set cross-checked against two proven sources: S4CL's shipping debug
-    # interactions and a popular user-facing Sim-targeted mod. Deliberately NO
-    # pie-menu category: custom categories require a paired SimData resource or
-    # the UI silently kills the whole pie menu. target_type TARGET matches the
-    # proven Sim-click pattern.
+def interaction_xml(name, s_id, key, command):
+    # PURE EA tuning — c="ImmediateSuperInteraction" (no custom Python in the
+    # pie-menu path) with a basic_extras do_command that invokes our console
+    # command, passing the clicked Sim (participant TargetSim) as an int id.
+    # Field set is a 1:1 structural copy of a large shipping mod's user-facing
+    # Sim interactions (the only pattern proven in the NORMAL, non-cheat menu).
     return (
         '<?xml version="1.0" encoding="utf-8"?>\n'
-        '<I c="%s" i="interaction" m="fivesim.interactions" n="fivesim:%s" s="%d">\n'
-        '  <V t="disabled" n="_saveable" />\n'
+        '<I c="ImmediateSuperInteraction" i="interaction" m="interactions.base.immediate_interaction" n="fivesim:%s" s="%d">\n'
+        '  <T n="acquire_targets_as_resource">False</T>\n'
         '  <T n="allow_autonomous">False</T>\n'
+        '  <T n="allow_user_directed">True</T>\n'
+        '  <V n="content_score" t="disabled" />\n'
         '  <T n="display_name">0x%08X</T>\n'
         '  <L n="interaction_category_tags">\n'
-        '    <E>Interaction_Super</E>\n'
-        '    <E>Interaction_All</E>\n'
+        '    <E>INVALID</E>\n'
         '  </L>\n'
+        '  <V n="outcome" t="single">\n'
+        '    <U n="single">\n'
+        '      <U n="actions">\n'
+        '        <L n="basic_extras">\n'
+        '          <V t="do_command">\n'
+        '            <U n="do_command">\n'
+        '              <L n="arguments">\n'
+        '                <V t="participant">\n'
+        '                  <U n="participant">\n'
+        '                    <E n="argument">TargetSim</E>\n'
+        '                  </U>\n'
+        '                </V>\n'
+        '              </L>\n'
+        '              <T n="command">%s</T>\n'
+        '            </U>\n'
+        '          </V>\n'
+        '        </L>\n'
+        '      </U>\n'
+        '    </U>\n'
+        '  </V>\n'
+        '  <V n="pie_menu_icon" t="enabled">\n'
+        '    <V n="enabled" t="resource_key">\n'
+        '      <U n="resource_key">\n'
+        '        <T n="key">2f7d0004:00000000:25eea5cdba6a6fd6</T>\n'
+        '      </U>\n'
+        '    </V>\n'
+        '  </V>\n'
         '  <T n="pie_menu_priority">9</T>\n'
         '  <U n="progress_bar_enabled">\n'
         '    <T n="bar_enabled">False</T>\n'
         '  </U>\n'
+        '  <V n="_saveable" t="disabled" />\n'
         '  <E n="target_type">TARGET</E>\n'
+        '  <L n="test_globals">\n'
+        '    <V t="sim_info">\n'
+        '      <U n="sim_info">\n'
+        '        <V n="ages" t="specified">\n'
+        '          <L n="specified">\n'
+        '            <E>CHILD</E>\n'
+        '            <E>TEEN</E>\n'
+        '            <E>YOUNGADULT</E>\n'
+        '            <E>ADULT</E>\n'
+        '            <E>ELDER</E>\n'
+        '          </L>\n'
+        '        </V>\n'
+        '        <V n="species" t="specified">\n'
+        '          <U n="specified">\n'
+        '            <L n="species">\n'
+        '              <E />\n'
+        '            </L>\n'
+        '          </U>\n'
+        '        </V>\n'
+        '        <E n="who">TargetSim</E>\n'
+        '      </U>\n'
+        '    </V>\n'
+        '  </L>\n'
         '</I>\n'
-    ) % (class_name, class_name, s_id, key)
+    ) % (name, s_id, key, command)
 
 
 # Custom PieMenuCategory intentionally NOT shipped: a category tuning must be
@@ -132,11 +184,19 @@ def write_package(resources):
         f.write(index)
 
 
+COMMANDS = {
+    'FiveSimPlay': 'fivesim.btn_play',
+    'FiveSimSetup': 'fivesim.btn_setup',
+    'FiveSimStop': 'fivesim.btn_stop',
+}
+
+
 def main():
     resources = []
     stbl_entries = []
     for (class_name, s_id, key, label) in INTERACTIONS:
-        resources.append((TYPE_TUNING, GROUP_TUNING, s_id, interaction_xml(class_name, s_id, key).encode('utf-8')))
+        cmd = COMMANDS[class_name]
+        resources.append((TYPE_TUNING, GROUP_TUNING, s_id, interaction_xml(class_name, s_id, key, cmd).encode('utf-8')))
         stbl_entries.append((key, label))
     resources.append((TYPE_STBL, GROUP_STBL, STBL_INSTANCE, build_stbl(stbl_entries)))
 

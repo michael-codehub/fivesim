@@ -107,6 +107,69 @@ def fivesim_status(_connection=None):
         o('  %s -> %s' % (m.get('id'), m.get('model')))
 
 
+# ── pie-menu button targets ───────────────────────────────────────────────
+# The pie buttons are pure EA tuning with a do_command basic_extra that calls
+# these, passing the clicked Sim's id as an int (participant TargetSim).
+
+def _notify(title, text):
+    try:
+        from . import ui
+        ui.notify(title, text)
+    except Exception:
+        pass
+
+
+@sims4.commands.Command('fivesim.btn_play', command_type=sims4.commands.CommandType.Live)
+def fivesim_btn_play(sim_id: int = None, _connection=None):
+    o = _out(_connection)
+    try:
+        if not sim_id:
+            o('fivesim: no sim id from the menu')
+            return
+        agent = AGENTS[0]
+        ok, st = host_client.status()
+        if ok:
+            used = (st.get('config') or {}).get('simMap') or {}
+            taken = {str(v) for v in used.values() if v}
+            if str(sim_id) in taken:
+                agent = next((a for a, v in used.items() if str(v) == str(sim_id)), agent)
+            else:
+                agent = next((a for a in AGENTS if not used.get(a)), AGENTS[0])
+        host_client.set_sim(agent, int(sim_id))
+        host_client.connect_bridge(BRIDGE_URL)
+        ok2, _res = host_client.start()
+        if ok2:
+            o('fivesim: %s is now playing sim %s' % (agent, sim_id))
+            _notify('5imulites', '%s is now playing this Sim.' % agent.upper())
+        else:
+            o('fivesim: mapped sim %s to %s, but the host app is not running' % (sim_id, agent))
+            _notify('5imulites', 'Sim mapped — start the 5imulites host app to begin.')
+    except Exception as e:
+        o('fivesim: %r' % e)
+
+
+@sims4.commands.Command('fivesim.btn_setup', command_type=sims4.commands.CommandType.Live)
+def fivesim_btn_setup(sim_id: int = None, _connection=None):
+    o = _out(_connection)
+    try:
+        from . import ui
+        ui.open_setup()
+        o('fivesim: setup dialog opened')
+    except Exception as e:
+        o('fivesim: setup needs S4CL dialogs (%r) — use: fivesim.key <key>' % e)
+
+
+@sims4.commands.Command('fivesim.btn_stop', command_type=sims4.commands.CommandType.Live)
+def fivesim_btn_stop(sim_id: int = None, _connection=None):
+    o = _out(_connection)
+    try:
+        host_client.stop()
+        o('fivesim: AI stopped')
+        _notify('5imulites', 'AI stopped — you have control again.')
+    except Exception as e:
+        o('fivesim: %r' % e)
+
+
 @sims4.commands.Command('fivesim.debug', command_type=sims4.commands.CommandType.Live)
 def fivesim_debug(_connection=None):
     """One-shot diagnostic: tells you exactly which layer is broken."""
