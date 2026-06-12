@@ -1,30 +1,31 @@
 #!/usr/bin/env python3
 """
-Best-effort: wrap fivesim/assets/logo.png into a Sims 4 .package as a PNG resource
-so it can be used as the in-game notification/dialog icon.
+Wraps fivesim/assets/logo.png into a Sims 4 .package as a PNG resource
+(type 0x2F7D0004, instance = modinfo.LOGO_INSTANCE) for dialog/notification icons.
 
-The instance id matches fivesim/modinfo.py LOGO_INSTANCE, and the mod references
-the same key. Output: dist/5imulites_icons.package — drop it in your Mods folder
-ALONGSIDE the .ts4script.
+DBPF layout + zlib compression conventions verified byte-for-byte against the
+shipping Sims4CommunityLibrary package (the known-loading reference).
 
-This hand-writes a DBPF 2.1 package (one uncompressed PNG resource). It's
-untested across every game patch — if the icon doesn't appear, repackage the PNG
-in Sims 4 Studio instead (Tools -> Extract/Import, type 0x2F7D0004 PNG, instance
-= 0x5130A1A1A1A10001). The mod degrades gracefully (no icon) either way.
-
-Usage:  python build_icon_package.py
+Usage:  python build_icon_package.py  ->  dist/5imulites_icons.package
 """
 import os
 import struct
+import zlib
+import importlib.util
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
+
+_spec = importlib.util.spec_from_file_location('_fivesim_modinfo', os.path.join(ROOT, 'fivesim', 'modinfo.py'))
+_modinfo = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_modinfo)
+LOGO_INSTANCE = _modinfo.LOGO_INSTANCE
+
 PNG = os.path.join(ROOT, 'fivesim', 'assets', 'logo.png')
 OUT_DIR = os.path.join(ROOT, 'dist')
 OUT = os.path.join(OUT_DIR, '5imulites_icons.package')
 
 TYPE_PNG = 0x2F7D0004
 GROUP = 0x00000000
-INSTANCE = 0x5130A1A1A1A10001   # must equal modinfo.LOGO_INSTANCE
 
 
 def main():
@@ -32,40 +33,35 @@ def main():
         print('missing', PNG)
         return 1
     with open(PNG, 'rb') as f:
-        data = f.read()
+        raw = f.read()
+    comp = zlib.compress(raw, 9)
 
     os.makedirs(OUT_DIR, exist_ok=True)
-    inst_hi = (INSTANCE >> 32) & 0xFFFFFFFF
-    inst_lo = INSTANCE & 0xFFFFFFFF
-    data_offset = 96
-    index_offset = data_offset + len(data)
+    header = bytearray(96)
+    header[0:4] = b'DBPF'
+    struct.pack_into('<I', header, 0x04, 2)
+    struct.pack_into('<I', header, 0x08, 1)
 
-    # index: flags(0) + one full entry (type,group,instHi,instLo,offset,size,mem,comp,commit)
+    body = comp
     index = struct.pack('<I', 0)
-    index += struct.pack('<IIII', TYPE_PNG, GROUP, inst_hi, inst_lo)
-    index += struct.pack('<I', data_offset)
-    index += struct.pack('<I', len(data) | 0x80000000)   # file size (hi bit set, v2 convention)
-    index += struct.pack('<I', len(data))                 # uncompressed size
-    index += struct.pack('<H', 0x0000)                    # compression: none
-    index += struct.pack('<H', 0x0001)                    # committed
+    index += struct.pack('<IIII', TYPE_PNG, GROUP, (LOGO_INSTANCE >> 32) & 0xFFFFFFFF, LOGO_INSTANCE & 0xFFFFFFFF)
+    index += struct.pack('<I', 96)                         # offset
+    index += struct.pack('<I', len(comp) | 0x80000000)     # compressed size (+ext bit)
+    index += struct.pack('<I', len(raw))                   # uncompressed size
+    index += struct.pack('<H', 0x5A42)                     # zlib
+    index += struct.pack('<H', 0x0001)                     # committed
 
-    # DBPF 2.1 header (96 bytes)
-    h = bytearray(96)
-    h[0:4] = b'DBPF'
-    struct.pack_into('<I', h, 0x04, 2)            # major
-    struct.pack_into('<I', h, 0x08, 1)            # minor
-    struct.pack_into('<I', h, 0x24, 1)            # index entry count
-    struct.pack_into('<I', h, 0x2C, len(index))   # index size
-    struct.pack_into('<I', h, 0x3C, 3)            # index minor version (TS4)
-    struct.pack_into('<I', h, 0x40, index_offset) # index offset
+    struct.pack_into('<I', header, 0x24, 1)
+    struct.pack_into('<I', header, 0x2C, len(index))
+    struct.pack_into('<I', header, 0x3C, 3)
+    struct.pack_into('<I', header, 0x40, 96 + len(body))
 
     with open(OUT, 'wb') as f:
-        f.write(h)
-        f.write(data)
+        f.write(header)
+        f.write(body)
         f.write(index)
 
-    print('wrote %s (%d bytes, logo %d bytes)' % (OUT, os.path.getsize(OUT), len(data)))
-    print('Install: copy it into Mods/ alongside fivesim.ts4script.')
+    print('wrote %s (%d bytes, logo %d -> %d zlib)' % (OUT, os.path.getsize(OUT), len(raw), len(comp)))
     return 0
 
 

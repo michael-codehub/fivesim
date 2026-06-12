@@ -66,6 +66,9 @@ def interaction_xml(class_name, s_id, key):
 
 
 def category_xml():
+    # NOTE: no custom _icon for now — referencing our PNG here proved risky
+    # (a malformed icon resource can take the whole pie menu down). Re-add once
+    # the icon package is confirmed loading in-game.
     return (
         '<?xml version="1.0" encoding="utf-8"?>\n'
         '<I c="PieMenuCategory" i="pie_menu_category" m="interactions.pie_menu_category" '
@@ -73,9 +76,8 @@ def category_xml():
         '  <T n="_collapsible">False</T>\n'
         '  <T n="_display_name">0x%08X</T>\n'
         '  <T n="_display_priority">200</T>\n'
-        '  <T n="_icon">2f7d0004:00000000:%016X</T>\n'
         '</I>\n'
-    ) % (CATEGORY_ID, KEY_CATEGORY, LOGO_INSTANCE)
+    ) % (CATEGORY_ID, KEY_CATEGORY)
 
 
 def build_stbl(entries):

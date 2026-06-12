@@ -48,7 +48,12 @@ class _Base(CommonImmediateSuperInteraction):
     @classmethod
     def on_test(cls, interaction_sim: Sim, interaction_target: Any,
                 interaction_context: InteractionContext, **kwargs) -> CommonTestResult:
-        return CommonTestResult.TRUE
+        # absolutely nothing in here may raise — a failing test can degrade the
+        # whole pie menu, so default to visible on any internal error
+        try:
+            return CommonTestResult.TRUE
+        except Exception:
+            return CommonTestResult.TRUE
 
 
 class FiveSimPlay(_Base):
