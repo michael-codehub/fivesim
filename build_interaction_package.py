@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 """
-Builds 5imulites_interactions.package — the DBPF that adds the real pie-menu
-button to Sims. It contains one Interaction tuning (type 0xE882D22F, stored as
-raw XML) per action, plus an English STBL (type 0x220557DA) with the pie-menu
-labels. The tuning `s=` ids and label keys come from fivesim/modinfo.py and must
-match interactions.py (which provides the Python classes).
+Builds 5imulites_interactions.package — the pie-menu button on every Sim.
 
-Needs the mod + Sims4CommunityLibrary installed to actually appear in-game.
-If the game ignores it, rebuild the tuning/STBL in Sims 4 Studio (the format is
-otherwise correct). The mod still works via console commands without it.
+Contents (structure mirrors Sims4CommunityLibrary's own shipping package, which
+is the proven-loading reference):
+  - 3 Interaction tunings (type 0xE882D22F, zlib-compressed raw XML)
+  - 1 PieMenuCategory tuning (type 0x03E9D964) -> the "5imulites" submenu,
+    with our logo PNG as its icon (TGI reference into 5imulites_icons.package)
+  - 1 English STBL (type 0x220557DA, group 0x00000000) with the labels
 
-Usage:  python build_interaction_package.py   ->  dist/5imulites_interactions.package
+Requires the fivesim mod + Sims4CommunityLibrary in Mods/ to appear in-game.
+
+Usage:  python build_interaction_package.py  ->  dist/5imulites_interactions.package
 """
 import os
 import struct
+import zlib
 import importlib.util
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -25,79 +27,108 @@ _modinfo = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_modinfo)
 INTERACTIONS = _modinfo.INTERACTIONS
 STBL_INSTANCE = _modinfo.STBL_INSTANCE
+CATEGORY_ID = _modinfo.CATEGORY_ID
+KEY_CATEGORY = _modinfo.KEY_CATEGORY
+LABEL_CATEGORY = _modinfo.LABEL_CATEGORY
+LOGO_INSTANCE = _modinfo.LOGO_INSTANCE
 
 OUT_DIR = os.path.join(ROOT, 'dist')
 OUT = os.path.join(OUT_DIR, '5imulites_interactions.package')
 
 TYPE_TUNING = 0xE882D22F
+TYPE_PIE_CATEGORY = 0x03E9D964
 TYPE_STBL = 0x220557DA
 GROUP_TUNING = 0x00000000
-GROUP_STBL = 0x80000000
+GROUP_STBL = 0x00000000          # English STBL lives at group 0 (S4CL convention)
 
 
-def tuning_xml(class_name, s_id, key, _label):
+def interaction_xml(class_name, s_id, key):
+    # field set copied from S4CL's shipping debug interactions (proven to load),
+    # minus cheat/debug gating so ours shows in the normal pie menu.
     return (
         '<?xml version="1.0" encoding="utf-8"?>\n'
         '<I c="%s" i="interaction" m="fivesim.interactions" n="fivesim:%s" s="%d">\n'
-        '  <T n="display_name">0x%08X</T>\n'
-        '  <E n="target_type">ACTOR</E>\n'
-        '  <T n="allow_user_directed">True</T>\n'
+        '  <V t="disabled" n="_saveable" />\n'
         '  <T n="allow_autonomous">False</T>\n'
+        '  <T n="category">%d<!--PieMenuCategory: fivesim_Pie_5imulites--></T>\n'
+        '  <T n="display_name">0x%08X</T>\n'
+        '  <L n="interaction_category_tags">\n'
+        '    <E>Interaction_Super</E>\n'
+        '    <E>Interaction_All</E>\n'
+        '  </L>\n'
+        '  <T n="pie_menu_priority">9</T>\n'
+        '  <U n="progress_bar_enabled">\n'
+        '    <T n="bar_enabled">False</T>\n'
+        '  </U>\n'
+        '  <E n="target_type">OBJECT</E>\n'
         '</I>\n'
-    ) % (class_name, class_name, s_id, key)
+    ) % (class_name, class_name, s_id, CATEGORY_ID, key)
+
+
+def category_xml():
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<I c="PieMenuCategory" i="pie_menu_category" m="interactions.pie_menu_category" '
+        'n="fivesim:Pie_5imulites" s="%d">\n'
+        '  <T n="_collapsible">False</T>\n'
+        '  <T n="_display_name">0x%08X</T>\n'
+        '  <T n="_display_priority">200</T>\n'
+        '  <T n="_icon">2f7d0004:00000000:%016X</T>\n'
+        '</I>\n'
+    ) % (CATEGORY_ID, KEY_CATEGORY, LOGO_INSTANCE)
 
 
 def build_stbl(entries):
-    # STBL v5 (little-endian). entries = list of (key_uint32, text)
+    # STBL v5, little-endian. mnStringLength counts utf-8 bytes PLUS one per
+    # string (null-terminated convention — verified against S4CL's own STBL).
     blob = bytearray()
     blob += b'STBL'
-    blob += struct.pack('<H', 5)          # version
-    blob += struct.pack('<B', 0)          # compressed (unused)
-    blob += struct.pack('<Q', len(entries))  # string count
-    blob += b'\x00\x00'                    # reserved
-    total = sum(len(t.encode('utf-8')) for _, t in entries)
-    blob += struct.pack('<I', total)      # mnStringLength (UTF-8 byte total)
+    blob += struct.pack('<H', 5)
+    blob += struct.pack('<B', 0)
+    blob += struct.pack('<Q', len(entries))
+    blob += b'\x00\x00'
+    total = sum(len(t.encode('utf-8')) + 1 for _, t in entries)
+    blob += struct.pack('<I', total)
     for key, text in entries:
         b = text.encode('utf-8')
-        blob += struct.pack('<I', key & 0xFFFFFFFF)  # key hash
-        blob += struct.pack('<B', 0)                  # flags
-        blob += struct.pack('<H', len(b))             # size (utf-8 bytes)
+        blob += struct.pack('<I', key & 0xFFFFFFFF)
+        blob += struct.pack('<B', 0)
+        blob += struct.pack('<H', len(b))
         blob += b
     return bytes(blob)
 
 
 def write_package(resources):
-    # resources = list of (type, group, instance64, data_bytes), uncompressed
+    # resources = list of (type, group, instance64, raw_bytes); zlib-compressed
+    # on disk (compression 0x5A42), matching how S4CL ships its package.
     os.makedirs(OUT_DIR, exist_ok=True)
     header = bytearray(96)
     header[0:4] = b'DBPF'
-    struct.pack_into('<I', header, 0x04, 2)  # major
-    struct.pack_into('<I', header, 0x08, 1)  # minor
+    struct.pack_into('<I', header, 0x04, 2)
+    struct.pack_into('<I', header, 0x08, 1)
 
     body = bytearray()
-    placed = []  # (type, group, inst, offset, size)
+    placed = []
     offset = 96
-    for (rtype, group, inst, data) in resources:
-        body += data
-        placed.append((rtype, group, inst, offset, len(data)))
-        offset += len(data)
+    for (rtype, group, inst, raw) in resources:
+        comp = zlib.compress(raw, 9)
+        body += comp
+        placed.append((rtype, group, inst, offset, len(comp), len(raw)))
+        offset += len(comp)
 
-    index = struct.pack('<I', 0)  # index flags: 0 = every field present per entry
-    for (rtype, group, inst, off, size) in placed:
-        inst_hi = (inst >> 32) & 0xFFFFFFFF
-        inst_lo = inst & 0xFFFFFFFF
-        index += struct.pack('<IIII', rtype, group, inst_hi, inst_lo)
+    index = struct.pack('<I', 0)
+    for (rtype, group, inst, off, csize, rsize) in placed:
+        index += struct.pack('<IIII', rtype, group, (inst >> 32) & 0xFFFFFFFF, inst & 0xFFFFFFFF)
         index += struct.pack('<I', off)
-        index += struct.pack('<I', size | 0x80000000)  # file size (hi bit, v2)
-        index += struct.pack('<I', size)               # uncompressed size
-        index += struct.pack('<H', 0x0000)             # compression: none
-        index += struct.pack('<H', 0x0001)             # committed
+        index += struct.pack('<I', csize | 0x80000000)
+        index += struct.pack('<I', rsize)
+        index += struct.pack('<H', 0x5A42)   # zlib
+        index += struct.pack('<H', 0x0001)   # committed
 
-    index_offset = 96 + len(body)
-    struct.pack_into('<I', header, 0x24, len(placed))    # entry count
-    struct.pack_into('<I', header, 0x2C, len(index))     # index size
-    struct.pack_into('<I', header, 0x3C, 3)              # index minor version
-    struct.pack_into('<I', header, 0x40, index_offset)   # index offset
+    struct.pack_into('<I', header, 0x24, len(placed))
+    struct.pack_into('<I', header, 0x2C, len(index))
+    struct.pack_into('<I', header, 0x3C, 3)
+    struct.pack_into('<I', header, 0x40, 96 + len(body))
 
     with open(OUT, 'wb') as f:
         f.write(header)
@@ -107,16 +138,16 @@ def write_package(resources):
 
 def main():
     resources = []
-    stbl_entries = []
+    stbl_entries = [(KEY_CATEGORY, LABEL_CATEGORY)]
     for (class_name, s_id, key, label) in INTERACTIONS:
-        xml = tuning_xml(class_name, s_id, key, label).encode('utf-8')
-        resources.append((TYPE_TUNING, GROUP_TUNING, s_id, xml))
+        resources.append((TYPE_TUNING, GROUP_TUNING, s_id, interaction_xml(class_name, s_id, key).encode('utf-8')))
         stbl_entries.append((key, label))
+    resources.append((TYPE_PIE_CATEGORY, GROUP_TUNING, CATEGORY_ID, category_xml().encode('utf-8')))
     resources.append((TYPE_STBL, GROUP_STBL, STBL_INSTANCE, build_stbl(stbl_entries)))
 
     write_package(resources)
-    print('wrote %s (%d bytes, %d interactions + 1 STBL)' % (OUT, os.path.getsize(OUT), len(INTERACTIONS)))
-    print('Install: copy it into Mods/ next to fivesim.ts4script (needs S4CL).')
+    print('wrote %s (%d bytes: %d interactions + submenu + STBL)' % (OUT, os.path.getsize(OUT), len(INTERACTIONS)))
+    print('Install: copy into Mods/ next to fivesim.ts4script (needs S4CL).')
     return 0
 
 

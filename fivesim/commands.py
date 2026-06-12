@@ -107,6 +107,36 @@ def fivesim_status(_connection=None):
         o('  %s -> %s' % (m.get('id'), m.get('model')))
 
 
+@sims4.commands.Command('fivesim.debug', command_type=sims4.commands.CommandType.Live)
+def fivesim_debug(_connection=None):
+    """One-shot diagnostic: tells you exactly which layer is broken."""
+    o = _out(_connection)
+    o('— 5imulites diagnostics —')
+    # 1. S4CL present?
+    try:
+        import sims4communitylib  # noqa: F401
+        o('S4CL: installed OK')
+    except Exception as e:
+        o('S4CL: MISSING -> %s (download Sims4CommunityLibrary into Mods/)' % e)
+    # 2. our interaction classes importable?
+    try:
+        from . import interactions  # noqa: F401
+        o('interaction classes: imported OK')
+    except Exception as e:
+        o('interaction classes: FAILED -> %r' % e)
+    # 3. did the .package tuning actually load?
+    try:
+        from .modinfo import INTERACTIONS, CATEGORY_ID
+        am = services.affordance_manager()
+        for (cls, sid, _key, _label) in INTERACTIONS:
+            tuning = am.get(sid)
+            o('%s tuning: %s' % (cls, 'LOADED' if tuning is not None else 'NOT FOUND (5imulites_interactions.package not loading)'))
+        o('submenu id: %s' % CATEGORY_ID)
+    except Exception as e:
+        o('tuning check failed: %r' % e)
+    o('host: %s' % ('reachable' if host_client.status()[0] else 'unreachable (run `npm run dev`)'))
+
+
 @sims4.commands.Command('fivesim.setup', command_type=sims4.commands.CommandType.Live)
 def fivesim_setup(_connection=None):
     o = _out(_connection)

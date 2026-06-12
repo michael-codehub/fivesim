@@ -20,13 +20,18 @@ INTERACTION_SETUP_ID = 0x9F1E511151510002
 INTERACTION_STOP_ID = 0x9F1E511151510003
 
 # pie-menu labels + their (arbitrary but matching) STBL string keys
-LABEL_PLAY = '5imulites ♦ Let AI play this Sim'
-LABEL_SETUP = '5imulites ♦ Setup (API key)'
-LABEL_STOP = '5imulites ♦ Stop AI'
+LABEL_PLAY = 'Let AI Play This Sim'
+LABEL_SETUP = 'Setup (API Key)'
+LABEL_STOP = 'Stop AI'
 KEY_PLAY = 0xA1A1AA01
 KEY_SETUP = 0xA1A1AA02
 KEY_STOP = 0xA1A1AA03
 STBL_INSTANCE = 0x0051305111510001   # high byte 0x00 = English (others fall back)
+
+# the "5imulites" submenu (PieMenuCategory tuning) with our logo as its icon
+CATEGORY_ID = 0x9F1E511151510010
+KEY_CATEGORY = 0xA1A1AA10
+LABEL_CATEGORY = '5imulites'
 
 INTERACTIONS = [
     ('FiveSimPlay', INTERACTION_PLAY_ID, KEY_PLAY, LABEL_PLAY),
