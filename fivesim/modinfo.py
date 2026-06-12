@@ -19,10 +19,13 @@ INTERACTION_PLAY_ID = 0x9F1E511151510001
 INTERACTION_SETUP_ID = 0x9F1E511151510002
 INTERACTION_STOP_ID = 0x9F1E511151510003
 
-# pie-menu labels + their (arbitrary but matching) STBL string keys
-LABEL_PLAY = 'Let AI Play This Sim'
-LABEL_SETUP = 'Setup (API Key)'
-LABEL_STOP = 'Stop AI'
+# pie-menu labels + their (arbitrary but matching) STBL string keys.
+# NOTE: top-level entries (no PieMenuCategory) — a custom category requires a
+# paired SimData resource (every category in S4CL + reference mods ships one);
+# without it the UI kills the whole pie menu. Branding lives in the label text.
+LABEL_PLAY = '5imulites: Let AI Play'
+LABEL_SETUP = '5imulites: Setup'
+LABEL_STOP = '5imulites: Stop AI'
 KEY_PLAY = 0xA1A1AA01
 KEY_SETUP = 0xA1A1AA02
 KEY_STOP = 0xA1A1AA03

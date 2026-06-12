@@ -43,14 +43,16 @@ GROUP_STBL = 0x00000000          # English STBL lives at group 0 (S4CL conventio
 
 
 def interaction_xml(class_name, s_id, key):
-    # field set copied from S4CL's shipping debug interactions (proven to load),
-    # minus cheat/debug gating so ours shows in the normal pie menu.
+    # Field set cross-checked against two proven sources: S4CL's shipping debug
+    # interactions and a popular user-facing Sim-targeted mod. Deliberately NO
+    # pie-menu category: custom categories require a paired SimData resource or
+    # the UI silently kills the whole pie menu. target_type TARGET matches the
+    # proven Sim-click pattern.
     return (
         '<?xml version="1.0" encoding="utf-8"?>\n'
         '<I c="%s" i="interaction" m="fivesim.interactions" n="fivesim:%s" s="%d">\n'
         '  <V t="disabled" n="_saveable" />\n'
         '  <T n="allow_autonomous">False</T>\n'
-        '  <T n="category">%d<!--PieMenuCategory: fivesim_Pie_5imulites--></T>\n'
         '  <T n="display_name">0x%08X</T>\n'
         '  <L n="interaction_category_tags">\n'
         '    <E>Interaction_Super</E>\n'
@@ -60,24 +62,16 @@ def interaction_xml(class_name, s_id, key):
         '  <U n="progress_bar_enabled">\n'
         '    <T n="bar_enabled">False</T>\n'
         '  </U>\n'
-        '  <E n="target_type">OBJECT</E>\n'
+        '  <E n="target_type">TARGET</E>\n'
         '</I>\n'
-    ) % (class_name, class_name, s_id, CATEGORY_ID, key)
+    ) % (class_name, class_name, s_id, key)
 
 
-def category_xml():
-    # NOTE: no custom _icon for now — referencing our PNG here proved risky
-    # (a malformed icon resource can take the whole pie menu down). Re-add once
-    # the icon package is confirmed loading in-game.
-    return (
-        '<?xml version="1.0" encoding="utf-8"?>\n'
-        '<I c="PieMenuCategory" i="pie_menu_category" m="interactions.pie_menu_category" '
-        'n="fivesim:Pie_5imulites" s="%d">\n'
-        '  <T n="_collapsible">False</T>\n'
-        '  <T n="_display_name">0x%08X</T>\n'
-        '  <T n="_display_priority">200</T>\n'
-        '</I>\n'
-    ) % (CATEGORY_ID, KEY_CATEGORY)
+# Custom PieMenuCategory intentionally NOT shipped: a category tuning must be
+# accompanied by a matching SimData resource (type 0x545AC67A) or the game's UI
+# crashes the whole pie menu while rendering it. Both reference mods (S4CL and
+# user-facing mods) pair every category with SimData. Until we can emit valid
+# SimData, the buttons live at the top level with branded labels.
 
 
 def build_stbl(entries):
@@ -140,15 +134,14 @@ def write_package(resources):
 
 def main():
     resources = []
-    stbl_entries = [(KEY_CATEGORY, LABEL_CATEGORY)]
+    stbl_entries = []
     for (class_name, s_id, key, label) in INTERACTIONS:
         resources.append((TYPE_TUNING, GROUP_TUNING, s_id, interaction_xml(class_name, s_id, key).encode('utf-8')))
         stbl_entries.append((key, label))
-    resources.append((TYPE_PIE_CATEGORY, GROUP_TUNING, CATEGORY_ID, category_xml().encode('utf-8')))
     resources.append((TYPE_STBL, GROUP_STBL, STBL_INSTANCE, build_stbl(stbl_entries)))
 
     write_package(resources)
-    print('wrote %s (%d bytes: %d interactions + submenu + STBL)' % (OUT, os.path.getsize(OUT), len(INTERACTIONS)))
+    print('wrote %s (%d bytes: %d top-level interactions + STBL)' % (OUT, os.path.getsize(OUT), len(INTERACTIONS)))
     print('Install: copy into Mods/ next to fivesim.ts4script (needs S4CL).')
     return 0
 
