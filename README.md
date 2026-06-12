@@ -19,7 +19,7 @@ Part of the [5imulites](https://x.com/5imulites) project · works on its own too
 |---|---|
 | 🎯 **The Sims 4** | any recent version, on Windows |
 | 🐍 **Python 3** | only to build the mod once — [python.org](https://www.python.org/downloads/) |
-| 📚 **Sims4CommunityLibrary** | free, required for the in-game button — [download](https://github.com/ColonolNutty/Sims4CommunityLibrary/releases) |
+| 📚 **Sims4CommunityLibrary** | free, required for the in-game button — [download](https://github.com/DeviantGameMods/Sims4CommunityLibrary/releases) |
 | 🧠 **The 5imulites host app** | the "brain" that talks to the AI. Runs on your PC and holds your API key |
 | 🔑 **An OpenRouter API key** | one key for all 5 models — get one at [openrouter.ai](https://openrouter.ai/settings/keys) |
 
