@@ -10,6 +10,13 @@ from . import bridge_server, state_reader, action_executor
 from . import commands  # noqa: F401  (registers the in-game console commands)
 from .modinfo import TOKEN_FILENAMES
 
+# Real pie-menu button — only loads if Sims4CommunityLibrary is installed.
+# Without S4CL this is skipped and the console commands remain the entry point.
+try:
+    from . import interactions  # noqa: F401
+except Exception:
+    pass
+
 _OWNER = object()        # keep a strong ref or the alarm gets GC-cancelled
 _alarm = None
 _started = False

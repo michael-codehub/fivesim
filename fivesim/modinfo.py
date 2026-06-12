@@ -10,3 +10,26 @@ TOKEN_FILENAMES = ['fivesim_token.txt']
 # Resource instance id for the bundled logo PNG (see assets/logo.png + the icon
 # .package built by build_icon_package.py). Used as the dialog/notification icon.
 LOGO_INSTANCE = 0x5130A1A1A1A10001
+
+# ── pie-menu interactions (the real in-game button) ──────────────────────────
+# These ids must match the tuning `s=` / DBPF instance ids in the interaction
+# .package (built by build_interaction_package.py) and what interactions.py
+# returns from interactions_to_add. High bit set to stay out of Maxis ranges.
+INTERACTION_PLAY_ID = 0x9F1E511151510001
+INTERACTION_SETUP_ID = 0x9F1E511151510002
+INTERACTION_STOP_ID = 0x9F1E511151510003
+
+# pie-menu labels + their (arbitrary but matching) STBL string keys
+LABEL_PLAY = '5imulites ♦ Let AI play this Sim'
+LABEL_SETUP = '5imulites ♦ Setup (API key)'
+LABEL_STOP = '5imulites ♦ Stop AI'
+KEY_PLAY = 0xA1A1AA01
+KEY_SETUP = 0xA1A1AA02
+KEY_STOP = 0xA1A1AA03
+STBL_INSTANCE = 0x0051305111510001   # high byte 0x00 = English (others fall back)
+
+INTERACTIONS = [
+    ('FiveSimPlay', INTERACTION_PLAY_ID, KEY_PLAY, LABEL_PLAY),
+    ('FiveSimSetup', INTERACTION_SETUP_ID, KEY_SETUP, LABEL_SETUP),
+    ('FiveSimStop', INTERACTION_STOP_ID, KEY_STOP, LABEL_STOP),
+]
