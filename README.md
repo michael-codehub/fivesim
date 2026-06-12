@@ -121,6 +121,18 @@ validating their interaction GUID and appending it to `INTERACTION_GUIDS` in
   thread only enqueues work — the documented-safe pattern for TS4 mods.
 - Only allow-listed interaction GUIDs are ever pushed.
 
+## Troubleshooting
+
+- **`/health` refuses to connect** → script mods not enabled, or you didn't
+  restart after enabling, or you're on the main menu (load a lot). Check
+  `Documents\Electronic Arts\The Sims 4\mod_logs` / `lastException` files.
+- **Mod ignored** → the `.ts4script` must be ≤1 subfolder deep in `Mods/`, and
+  the inner module path must stay `fivesim/…`.
+- **`sim_not_instantiated`** → the Sim is off-lot; use `console`/`modify_funds`
+  which don't need an instanced Sim, or switch to that household.
+- **Wrong `.pyc` version warning** → harmless; the game falls back to the shipped
+  `.py`. Build with CPython 3.7 to silence it.
+
 ## License
 
 MIT © 2026 Mari
