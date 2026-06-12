@@ -7,6 +7,7 @@ import clock
 import zone
 from .injector import inject
 from . import bridge_server, state_reader, action_executor
+from . import commands  # noqa: F401  (registers the in-game console commands)
 from .modinfo import TOKEN_FILENAMES
 
 _OWNER = object()        # keep a strong ref or the alarm gets GC-cancelled
