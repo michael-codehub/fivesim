@@ -45,7 +45,17 @@ def main():
                     z.write(full, arc)
                     n += 1
     print('wrote %s (%d files)' % (OUT, n))
-    print('Install: copy it into  Documents/Electronic Arts/The Sims 4/Mods/')
+
+    # also build the optional companion packages (logo icon + pie-menu button)
+    for mod_name in ('build_icon_package', 'build_interaction_package'):
+        try:
+            mod = __import__(mod_name)
+            mod.main()
+        except Exception as e:
+            print('%s skipped: %s' % (mod_name, e))
+
+    print('Install: copy dist/*.ts4script (+ dist/*.package) into '
+          'Documents/Electronic Arts/The Sims 4/Mods/')
     return 0
 
 
