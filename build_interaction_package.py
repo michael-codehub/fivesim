@@ -39,7 +39,12 @@ TYPE_TUNING = 0xE882D22F
 TYPE_PIE_CATEGORY = 0x03E9D964
 TYPE_STBL = 0x220557DA
 GROUP_TUNING = 0x00000000
-GROUP_STBL = 0x00000000          # English STBL lives at group 0 (S4CL convention)
+
+# Ship one STBL per locale (high byte of the instance id = language code), all
+# with the SAME keys + text — exactly how S4CL does it — so labels show in ANY
+# game language (the user's game is Russian; English-only wouldn't resolve).
+STBL_LOCALES = [0x00, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x0B, 0x0C,
+                0x0D, 0x0E, 0x0F, 0x11, 0x12, 0x13, 0x15]
 
 
 def interaction_xml(name, s_id, key, command):
@@ -198,7 +203,12 @@ def main():
         cmd = COMMANDS[class_name]
         resources.append((TYPE_TUNING, GROUP_TUNING, s_id, interaction_xml(class_name, s_id, key, cmd).encode('utf-8')))
         stbl_entries.append((key, label))
-    resources.append((TYPE_STBL, GROUP_STBL, STBL_INSTANCE, build_stbl(stbl_entries)))
+    stbl_bytes = build_stbl(stbl_entries)
+    base_inst = STBL_INSTANCE & 0x00FFFFFFFFFFFFFF  # clear high (locale) byte
+    for hb in STBL_LOCALES:
+        inst = (hb << 56) | base_inst
+        group = 0x00000000 if hb == 0x00 else 0x80000000
+        resources.append((TYPE_STBL, group, inst, stbl_bytes))
 
     write_package(resources)
     print('wrote %s (%d bytes: %d top-level interactions + STBL)' % (OUT, os.path.getsize(OUT), len(INTERACTIONS)))
