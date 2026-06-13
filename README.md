@@ -154,4 +154,4 @@ Everything runs on `127.0.0.1` only; your key never leaves your PC.
 
 ## License
 
-MIT © 2026 Mari · bundled S4CL is CC BY 4.0 (see `download/ATTRIBUTION.txt`)
+MIT © 2026 andro · bundled S4CL is CC BY 4.0 (see `download/ATTRIBUTION.txt`)
