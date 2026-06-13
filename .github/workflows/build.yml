@@ -1,0 +1,26 @@
+name: build mod (.pyc for The Sims 4)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'fivesim/**'
+      - 'tools/build_pyc.py'
+      - '.github/workflows/build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.7'
+      - name: Build sourceless .ts4script
+        run: python tools/build_pyc.py
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fivesim-ts4script
+          path: dist/fivesim.ts4script
+          if-no-files-found: error
