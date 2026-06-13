@@ -1,6 +1,0 @@
-sims4communitylib.ts4script and sims4communitylib.package are
-The Sims 4 Community Library (S4CL) v3.21 by ColonolNutty & contributors,
-bundled unmodified for convenience under its license:
-Creative Commons Attribution 4.0 International (CC BY 4.0)
-https://creativecommons.org/licenses/by/4.0/
-Source: https://github.com/DeviantGameMods/Sims4CommunityLibrary

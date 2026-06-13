@@ -2,6 +2,6 @@ __pycache__/
 *.pyc
 dist/
 *.ts4script
-!download/*.ts4script
+!download/**
 fivesim_token.txt
 .DS_Store

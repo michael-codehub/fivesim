@@ -1,0 +1,16 @@
+5imulites — install (Windows)
+
+1) Copy EVERYTHING inside the "Mods" folder here into:
+      Documents\Electronic Arts\The Sims 4\Mods\
+
+2) In the game: Settings > Game Options > Other >
+      tick "Enable Custom Content and Mods" + "Script Mods Allowed"
+      then FULLY RESTART the game.
+
+3) Double-click  5imulites-host-win-x64.exe  (a control window opens in your
+   browser). Paste your OpenRouter key (get one at openrouter.ai).
+
+4) Load a household, click a Sim > "5imulites: Let AI Play".
+   (Or in the control window: "Load Sims from game" > pick > Start.)
+
+Trouble? In-game press Ctrl+Shift+C and type:  fivesim.debug
