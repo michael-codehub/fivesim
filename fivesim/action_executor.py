@@ -16,6 +16,54 @@ def _sim_instance(sim_id):
     return si, si.get_sim_instance()
 
 
+def _running_interactions(sim):
+    try:
+        return list(sim.get_all_running_and_queued_interactions())
+    except Exception:
+        return []
+
+
+def _is_running(sim, affordance):
+    want = getattr(affordance, '__name__', None)
+    for si in _running_interactions(sim):
+        try:
+            aff = getattr(si, 'affordance', None)
+            if aff is affordance or (want and getattr(aff, '__name__', None) == want):
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def _cancel_running(sim):
+    """Interrupt whatever the Sim is doing so a new decision takes over."""
+    try:
+        from interactions.interaction_finisher import FinishingType
+        reason = FinishingType.USER_CANCEL
+    except Exception:
+        FinishingType = None
+        reason = None
+    for si in _running_interactions(sim):
+        try:
+            if reason is not None:
+                si.cancel(reason, cancel_reason_msg='fivesim override')
+            else:
+                si.cancel_user(cancel_reason_msg='fivesim override')
+        except Exception:
+            continue
+
+
+def _set_speed(n):
+    import clock
+    modes = {
+        0: clock.ClockSpeedMode.PAUSED,
+        1: clock.ClockSpeedMode.NORMAL,
+        2: clock.ClockSpeedMode.SPEED2,
+        3: clock.ClockSpeedMode.SPEED3,
+    }
+    services.game_clock_service().set_clock_speed(modes.get(int(n), clock.ClockSpeedMode.NORMAL))
+
+
 def execute_action(action):
     """
     action = { "type": "console"|"interaction"|"go_to_work"|"modify_funds",
@@ -36,17 +84,28 @@ def execute_action(action):
         sims4.commands.execute('sims.modify_funds %d' % amount, None)
         return {'ok': True, 'mode': 'modify_funds', 'amount': amount, 'funds': hh.funds.money}
 
+    if a_type == 'set_speed':
+        try:
+            _set_speed(action.get('speed', 1))
+            return {'ok': True, 'mode': 'set_speed', 'speed': int(action.get('speed', 1))}
+        except Exception as e:
+            return {'ok': False, 'error': 'set_speed_failed: %s' % e}
+
     if a_type == 'go_to_work':
-        si, _ = _sim_instance(action['sim_id'])
+        si, sim = _sim_instance(action['sim_id'])
         if si is None or si.career_tracker is None:
             return {'ok': False, 'error': 'no_career'}
+        if sim is not None:
+            _cancel_running(sim)
+        last = None
         for c in si.career_tracker.careers.values():
             try:
                 c.push_go_to_work()
                 return {'ok': True, 'mode': 'go_to_work'}
             except Exception as e:
-                return {'ok': False, 'error': 'go_to_work_failed: %s' % e}
-        return {'ok': False, 'error': 'no_career_entry'}
+                last = e
+                continue
+        return {'ok': False, 'error': 'go_to_work_failed: %s' % last if last else 'no_career_entry'}
 
     if a_type == 'interaction':
         return _push_interaction(action)
@@ -125,6 +184,13 @@ def _push_interaction(action):
 
     if affordance is None:
         return {'ok': False, 'error': 'affordance_not_found', 'interaction': name}
+
+    # already doing exactly this? let it continue instead of restarting (no thrash)
+    if _is_running(sim, affordance):
+        return {'ok': True, 'mode': 'interaction', 'affordance': aff_name, 'queued': False, 'note': 'already_running'}
+
+    # otherwise interrupt whatever the Sim is doing so this decision takes over
+    _cancel_running(sim)
 
     context = InteractionContext(
         sim,

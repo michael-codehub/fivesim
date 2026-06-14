@@ -119,6 +119,18 @@ def fivesim_act(action='sleep', sim_id: int = None, _connection=None):
         o('fivesim.act failed: %r' % e)
 
 
+@sims4.commands.Command('fivesim.speed', command_type=sims4.commands.CommandType.Live)
+def fivesim_speed(level=3, _connection=None):
+    """Set game speed 0=pause 1=normal 2=fast 3=ultra (used to fast-forward long actions)."""
+    o = _out(_connection)
+    try:
+        from . import action_executor
+        action_executor._set_speed(int(level))
+        o('game speed -> %s' % level)
+    except Exception as e:
+        o('fivesim.speed failed: %r' % e)
+
+
 @sims4.commands.Command('fivesim.find', command_type=sims4.commands.CommandType.Live)
 def fivesim_find(keyword='sleep', _connection=None):
     """List object super-affordances on the lot whose name contains <keyword>.

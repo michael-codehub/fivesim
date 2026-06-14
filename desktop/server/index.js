@@ -375,43 +375,90 @@ exports.buildSystemPrompt = buildSystemPrompt;
 exports.buildObservation = buildObservation;
 exports.parseDecision = parseDecision;
 function buildSystemPrompt(agent) {
-    return `You are ${agent.simName}, a character living an autonomous life in a life-simulation (think The Sims). You are driven by the ${agent.model} model — play this life the way ${agent.provider}'s ${agent.model} would reason about it.
+    return `You are ${agent.simName}, a character living an autonomous life in The Sims 4. You are driven by the ${agent.model} model — play this life the way ${agent.provider}'s ${agent.model} would reason about it.
 
 Who you are:
 - Archetype: ${agent.archetype}. Traits: ${agent.traits.join(', ')}.
 - Life aspiration: ${agent.aspiration}.
 - ${agent.bio}
 
-This is a long-term game with competing goals — money, happiness, relationships and career all pull against each other and against your six needs (hunger, energy, social, hygiene, fun, bladder). You are scored on judgment: how well you plan, adapt, and balance these over many days. There is no human steering you.
+This is a long-term game scored on judgment — how well you balance six needs (hunger, energy, social, hygiene, fun, bladder) against money, career, relationships and your aspiration, over many days. No human steers you.
 
-Each turn you observe your situation and choose exactly ONE action from the provided menu. Decide like ${agent.simName} would — consistent with your personality and aspiration. If a need is critically low it will wreck your mood, so weigh maintenance against ambition.
+HOW TO DECIDE WELL (this matters — don't be a robot that only sleeps):
+1. Look at your needs. Act on the MOST URGENT one first — the lowest number, especially anything under ~30. Hunger low → cook_meal. Bladder low → use_bathroom. Hygiene low → shower. Social low → talk to someone. ONLY choose sleep when ENERGY is your single lowest need; never sleep to fix hunger, a full bladder, low hygiene, or boredom.
+2. If no need is urgent (all comfortably above ~40), DON'T do chores — pursue your aspiration, career, money, a skill, or fun. This is your chance to actually live.
+3. Be social. When other people are around and your social need isn't full, talk to them BY NAME instead of doing something alone.
+4. Don't repeat what you're already doing or just did — vary your life. If you just slept, don't sleep again.
+5. You can interrupt your current action: if something is more urgent now, just choose it and you'll switch to it.
+
+Stay in character for ${agent.simName} (your traits + aspiration shape HOW you pursue these). Choose exactly ONE action from the menu.
 
 Respond with ONLY a JSON object, no prose, in this exact shape:
-{"action":"<action_id from the menu>","target":"<a person's name if the action needs one, else null>","reasoning":"<one or two first-person sentences explaining why, in your voice>"}`;
+{"action":"<action_id from the menu>","target":"<a person's name if the action needs one, else null>","reasoning":"<one or two first-person sentences in your voice>"}`;
+}
+const NEED_LABELS = {
+    hunger: 'Hunger', energy: 'Energy', social: 'Social', hygiene: 'Hygiene', fun: 'Fun', bladder: 'Bladder',
+};
+function flag(v) {
+    return v < 15 ? ' ⚠️CRITICAL' : v < 30 ? ' ⚠️low' : v < 45 ? ' (getting low)' : '';
+}
+function helpText(a) {
+    const pos = Object.entries(a.needs || {})
+        .filter(([, r]) => Array.isArray(r) && (r[0] + r[1]) / 2 > 4)
+        .sort((x, y) => (y[1][0] + y[1][1]) - (x[1][0] + x[1][1]));
+    if (pos.length)
+        return `restores ${NEED_LABELS[pos[0][0]] || pos[0][0]}`;
+    return `helps ${a.metric.charAt(0).toUpperCase() + a.metric.slice(1)}`;
 }
 function buildObservation(agent, opts) {
-    const needs = agent.needs.map((n) => `${n.label} ${Math.round(n.value)}/100`).join(', ');
+    const liveNeeds = opts.live?.needs
+        ? Object.entries(opts.live.needs)
+            .filter(([, v]) => typeof v === 'number')
+            .map(([k, v]) => ({ label: NEED_LABELS[k] || k, value: v }))
+        : [];
+    const needsArr = liveNeeds.length ? liveNeeds : agent.needs.map((n) => ({ label: n.label, value: n.value }));
+    needsArr.sort((a, b) => a.value - b.value);
+    const needs = needsArr.map((n) => `${n.label} ${Math.round(n.value)}/100${flag(n.value)}`).join(', ');
+    const urgent = needsArr.filter((n) => n.value < 30).map((n) => n.label);
+    const allComfortable = needsArr.every((n) => n.value > 45);
+    const energyLowest = needsArr.length > 0 && needsArr[0].label === 'Energy';
+    const urgentLine = urgent.length
+        ? `\n⚠️ MOST URGENT: ${urgent.join(', ')} — fix ${urgent.length > 1 ? 'these' : 'this'} first (unless a paid directive overrides).`
+        : allComfortable
+            ? `\n✅ All needs are comfortable — do NOT do chores; pursue your aspiration, career, money, a skill, fun, or people.`
+            : `\nNeeds are okay — you may top up a low one, but it's equally fine to pursue your aspiration / career / social.`;
+    const sleepGuard = !energyLowest ? `\n🚫 Energy is not your lowest need — do NOT choose sleep this turn.` : '';
+    const money = opts.live ? opts.live.funds : agent.simoleons;
+    const careerTitle = opts.live?.career?.title ?? agent.career.title;
+    const careerLevel = opts.live?.career?.level ?? agent.career.level;
     const skills = agent.skills.map((s) => `${s.name} Lv${s.level}`).join(', ') || 'none yet';
     const rels = opts.targets.length
         ? opts.targets.map((r) => `${r.name} (${r.kind}, friendship ${Math.round(r.friendship)})`).join('; ')
         : 'no one close yet';
+    const people = (opts.live?.others?.length ? opts.live.others : opts.targets.map((t) => t.name)).slice(0, 6);
+    const socialLow = needsArr.find((n) => n.label === 'Social');
+    const here = people.length
+        ? `\nPeople you can talk to${opts.live?.others?.length ? ' (here with you now)' : ''}: ${people.join(', ')}.${socialLow && socialLow.value < 40 ? ' Your Social is low — talk to one of them BY NAME instead of doing something alone.' : ''}`
+        : '';
+    const doingNow = opts.lastAction
+        ? `\nRight now you are: ${opts.lastAction}. You can interrupt it by choosing something else.`
+        : '';
     const menu = opts.menu
         .map((a) => {
-        const help = a.metric.charAt(0).toUpperCase() + a.metric.slice(1);
         const tgt = a.requiresTarget ? ` (needs a ${a.requiresTarget})` : '';
-        return `- ${a.id}: ${a.label} → helps ${help}${tgt}`;
+        return `- ${a.id}: ${a.label} → ${helpText(a)}${tgt}`;
     })
         .join('\n');
     const directive = opts.viewerPrompt
         ? `\n🎟️ VIEWER DIRECTIVE — a viewer (${opts.viewerPrompt.walletShort}) paid real SOL to ask you to: «${opts.viewerPrompt.text}». Treat this as a high-priority request: choose the menu action that best honors it and say in your reasoning that you're acting on it — unless it is impossible or genuinely self-destructive, in which case do the closest sensible thing.\n`
         : '';
     return `${directive}── Day ${agent.simDay}, ${opts.clock} · at ${agent.currentLocation} · mood: ${agent.mood} ──
-Needs: ${needs}
-Money: §${Math.round(agent.simoleons).toLocaleString('en-US')}
-Career: ${agent.career.title} (level ${agent.career.level}/${agent.career.maxLevel}, performance ${Math.round(agent.career.performance)}/100, §${agent.career.salaryPerDay}/day)
+Needs (worst first): ${needs}${urgentLine}${sleepGuard}
+Money: §${Math.round(money).toLocaleString('en-US')}
+Career: ${careerTitle} (level ${careerLevel}/${agent.career.maxLevel})
 Skills: ${skills}
-Relationships: ${rels}
-Aspiration: ${agent.aspiration}${opts.goal ? `\nCurrent focus: ${opts.goal}` : ''}
+Relationships: ${rels}${here}
+Aspiration: ${agent.aspiration}${opts.goal ? `\nCurrent focus: ${opts.goal}` : ''}${doingNow}
 
 Recently you:
 ${opts.recentEvents.length ? opts.recentEvents.map((e) => `• ${e}`).join('\n') : '• (just getting started)'}
@@ -1176,6 +1223,7 @@ let GameDriverService = class GameDriverService {
         this.healthy = false;
         this.seq = 0;
         this.noHousehold = false;
+        this.simsCache = null;
     }
     get url() {
         return this.host.bridgeUrl;
@@ -1256,6 +1304,24 @@ let GameDriverService = class GameDriverService {
         catch {
             this.healthy = false;
             return null;
+        }
+    }
+    async listSimsCached(ttlMs = 8000) {
+        const now = Date.now();
+        if (this.simsCache && now - this.simsCache.at < ttlMs)
+            return this.simsCache.sims;
+        const sims = await this.listSims();
+        if (sims)
+            this.simsCache = { at: now, sims };
+        return sims ?? this.simsCache?.sims ?? [];
+    }
+    async setSpeed(speed) {
+        if (!this.configured)
+            return;
+        try {
+            await this.req('POST', '/dispatch', { id: `spd-${Date.now()}-${this.seq++}`, action: { type: 'set_speed', speed } });
+        }
+        catch {
         }
     }
     async pullState(agentId) {
@@ -1563,6 +1629,11 @@ __decorate([
     (0, class_validator_1.Max)(600000),
     __metadata("design:type", Number)
 ], HostConfigDto.prototype, "decisionIntervalMs", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsBoolean)(),
+    __metadata("design:type", Boolean)
+], HostConfigDto.prototype, "fastForward", void 0);
 //# sourceMappingURL=dto.js.map
 
 /***/ }),
@@ -1641,6 +1712,9 @@ let HostConfigService = class HostConfigService {
     get decisionIntervalMs() {
         return this.cfg.decisionIntervalMs ?? Number(process.env.DECISION_INTERVAL_MS || 15000);
     }
+    get fastForward() {
+        return this.cfg.fastForward ?? true;
+    }
     set(partial) {
         if (partial.openRouterKey !== undefined)
             this.cfg.openRouterKey = partial.openRouterKey.trim() || undefined;
@@ -1665,6 +1739,8 @@ let HostConfigService = class HostConfigService {
             this.cfg.llmEnabled = partial.llmEnabled;
         if (partial.decisionIntervalMs !== undefined)
             this.cfg.decisionIntervalMs = partial.decisionIntervalMs;
+        if (partial.fastForward !== undefined)
+            this.cfg.fastForward = partial.fastForward;
         this.persist();
     }
     publicState(agentIds) {
@@ -1677,6 +1753,7 @@ let HostConfigService = class HostConfigService {
             bridgeUrl: this.bridgeUrl,
             bridgeConfigured: !!this.bridgeUrl,
             decisionIntervalMs: this.decisionIntervalMs,
+            fastForward: this.fastForward,
             models: Object.fromEntries(agentIds.map((id) => [id, this.modelFor(id)])),
             enabledAgents: agentIds.filter((id) => this.isAgentEnabled(id)),
             simMap: Object.fromEntries(agentIds.map((id) => [id, this.simIdFor(id)])),
@@ -2179,7 +2256,28 @@ let OrchestratorService = class OrchestratorService {
         this.events.emit('thinking', { agentId: agent.id, on: true, model: this.brain.modelFor(agent.id) });
         try {
             const newDay = this.world.tickTime(agent);
-            const targets = agent.relationships.map((r) => ({ name: r.name, kind: r.kind, friendship: r.friendship, romance: r.romance }));
+            let targets = agent.relationships.map((r) => ({ name: r.name, kind: r.kind, friendship: r.friendship, romance: r.romance }));
+            let live;
+            if (this.driver.connected) {
+                const [st, roster] = await Promise.all([this.driver.pullState(agent.id), this.driver.listSimsCached()]);
+                if (st) {
+                    const myId = this.host.simIdFor(agent.id);
+                    const others = roster.filter((s) => String(s.sim_id) !== String(myId)).map((s) => s.name);
+                    const careers = st.careers || [];
+                    live = {
+                        needs: st.needs || {},
+                        funds: typeof st.funds === 'number' ? st.funds : agent.simoleons,
+                        career: careers[0] ? { title: careers[0].title || agent.career.title, level: careers[0].user_level ?? agent.career.level } : undefined,
+                        others,
+                    };
+                    if (others.length) {
+                        const known = new Set(targets.map((t) => t.name.toLowerCase()));
+                        for (const name of others)
+                            if (!known.has(name.toLowerCase()))
+                                targets.push({ name, kind: 'housemate', friendship: 20, romance: 0 });
+                    }
+                }
+            }
             const viewerPrompt = this.viewerPrompts.nextFor(agent.id);
             const ctx = {
                 clock: this.store.clockOf(agent),
@@ -2187,11 +2285,15 @@ let OrchestratorService = class OrchestratorService {
                 goal: this.memory.focus(agent.id),
                 menu: actions_1.ACTIONS,
                 targets,
+                live,
+                lastAction: agent.currentAction,
                 viewerPrompt: viewerPrompt ? { text: viewerPrompt.text, walletShort: viewerPrompt.walletShort } : undefined,
             };
             const decision = await this.brain.decide(agent, ctx);
             const outcome = this.world.apply(agent, decision.action, decision.target);
             const dispatch = await this.driver.dispatch(agent, decision.action, decision.target, outcome.simoleonsDelta);
+            if (this.driver.connected && this.host.fastForward)
+                void this.driver.setSpeed(3);
             const detail = decision.reasoning || `${agent.simName} chose to ${decision.action.label.toLowerCase()}.`;
             const log = {
                 id: this.store.newId('log'),

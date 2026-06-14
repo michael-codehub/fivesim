@@ -141,6 +141,11 @@
         </select>
         <span class="mut" style="font-size:11px">lower = livelier, more API usage</span>
       </div>
+      <div class="row" style="margin-bottom:10px">
+        <span class="mut" style="min-width:90px">Time</span>
+        <span id="ffChip" class="livechip" onclick="toggleFF()">⏩ fast-forward while AI plays</span>
+        <span class="mut" style="font-size:11px">speeds the game up so long actions (sleep/work) pass quickly</span>
+      </div>
       <div class="row">
         <span class="mut" style="min-width:90px">Default brain</span>
         <select id="defModel" style="flex:1;min-width:160px"></select>
@@ -191,6 +196,7 @@ function render(){
   document.getElementById('keyState').innerHTML=c.hasKey?('<span class=ok>'+c.keyMasked+'</span>'):'<span class=bad>not set — paste it above</span>';
   if(document.activeElement.id!=='bridge')document.getElementById('bridge').value=c.bridgeUrl||'http://127.0.0.1:8123';
   if(document.activeElement.id!=='cadence')document.getElementById('cadence').value=String(c.decisionIntervalMs||15000);
+  document.getElementById('ffChip').className='livechip'+(c.fastForward!==false?' on':'');
 
   // game banner
   const b=document.getElementById('gbanner'),gt=document.getElementById('gtitle'),gs=document.getElementById('gsub'),ab=document.getElementById('autoBtn');
@@ -242,6 +248,7 @@ async function unassign(simId){await post('/api/host/unassign',{sim_id:simId});r
 async function toggleAgent(id,on){const cur=new Set(STATE.config.enabledAgents);on?cur.add(id):cur.delete(id);await post('/api/host/config',{enabledAgents:[...cur]});refresh();}
 async function applyAll(){const m=document.getElementById('defModel').value;const models={};(STATE.agents||[]).forEach(a=>models[a.id]=m);await post('/api/host/config',{models});refresh();}
 async function setCadence(ms){await post('/api/host/config',{decisionIntervalMs:parseInt(ms,10)});refresh();}
+async function toggleFF(){await post('/api/host/config',{fastForward:!(STATE.config.fastForward!==false)});refresh();}
 async function reloadSims(){await post('/api/host/config',{bridgeUrl:document.getElementById('bridge').value.trim()||'http://127.0.0.1:8123'});refresh();}
 async function autoStart(){const r=await post('/api/host/autoassign');if(r.ok)await post('/api/host/start');refresh();}
 async function saveAndStart(){
