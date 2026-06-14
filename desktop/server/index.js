@@ -1666,6 +1666,16 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], HostConfigDto.prototype, "fastForward", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], HostConfigDto.prototype, "relayUrl", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], HostConfigDto.prototype, "relaySecret", void 0);
 //# sourceMappingURL=dto.js.map
 
 /***/ }),
@@ -1747,6 +1757,12 @@ let HostConfigService = class HostConfigService {
     get fastForward() {
         return this.cfg.fastForward ?? true;
     }
+    get relayUrl() {
+        return (this.cfg.relayUrl ?? process.env.RELAY_URL ?? '').replace(/\/$/, '');
+    }
+    get relaySecret() {
+        return this.cfg.relaySecret ?? process.env.RELAY_SECRET ?? '';
+    }
     set(partial) {
         if (partial.openRouterKey !== undefined)
             this.cfg.openRouterKey = partial.openRouterKey.trim() || undefined;
@@ -1773,6 +1789,10 @@ let HostConfigService = class HostConfigService {
             this.cfg.decisionIntervalMs = partial.decisionIntervalMs;
         if (partial.fastForward !== undefined)
             this.cfg.fastForward = partial.fastForward;
+        if (partial.relayUrl !== undefined)
+            this.cfg.relayUrl = partial.relayUrl.trim() || undefined;
+        if (partial.relaySecret !== undefined)
+            this.cfg.relaySecret = partial.relaySecret.trim() || undefined;
         this.persist();
     }
     publicState(agentIds) {
@@ -1786,6 +1806,8 @@ let HostConfigService = class HostConfigService {
             bridgeConfigured: !!this.bridgeUrl,
             decisionIntervalMs: this.decisionIntervalMs,
             fastForward: this.fastForward,
+            relayUrl: this.relayUrl,
+            relayConfigured: !!this.relayUrl && !!this.relaySecret,
             models: Object.fromEntries(agentIds.map((id) => [id, this.modelFor(id)])),
             enabledAgents: agentIds.filter((id) => this.isAgentEnabled(id)),
             simMap: Object.fromEntries(agentIds.map((id) => [id, this.simIdFor(id)])),
@@ -1927,9 +1949,20 @@ const core_1 = __nccwpck_require__(97363);
 const common_1 = __nccwpck_require__(85897);
 const app_module_1 = __nccwpck_require__(47346);
 async function bootstrap() {
+    if (process.env.RELAY_MODE === '1') {
+        const s = process.env.RELAY_SECRET || '';
+        if (s.length < 24) {
+            new common_1.Logger('Bootstrap').error('RELAY_MODE=1 requires RELAY_SECRET of ≥24 random chars. Refusing to start.');
+            process.exit(1);
+        }
+    }
     const app = await core_1.NestFactory.create(app_module_1.AppModule, { cors: true });
     app.enableCors({ origin: true, credentials: true });
     app.useGlobalPipes(new common_1.ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: false }));
+    if (process.env.STATIC_DIR) {
+        app.useStaticAssets(process.env.STATIC_DIR);
+        new common_1.Logger('Bootstrap').log(`Serving static site from ${process.env.STATIC_DIR}`);
+    }
     const port = Number(process.env.PORT || 4000);
     await app.listen(port, '0.0.0.0');
     new common_1.Logger('Bootstrap').log(`5imulites orchestrator live on http://localhost:${port}`);
@@ -2257,6 +2290,10 @@ let OrchestratorService = OrchestratorService_1 = class OrchestratorService {
     get isRunning() { return this.running; }
     async applyConfig() { await this.driver.recheck(); }
     onModuleInit() {
+        if (process.env.RELAY_MODE === '1') {
+            this.logger.log('RELAY_MODE — orchestrator dormant (queue + payments only, no game loop)');
+            return;
+        }
         const now = Date.now();
         this.store.agents.forEach((a, i) => {
             this.memory.init(a.id, a.aspiration);
@@ -2506,6 +2543,11 @@ __decorate([
     (0, class_validator_1.Length)(32, 50),
     __metadata("design:type", String)
 ], BuyPromptsDto.prototype, "wallet", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(['SOL', 'USDC', 'TOKEN']),
+    __metadata("design:type", String)
+], BuyPromptsDto.prototype, "currency", void 0);
 class SubmitPromptDto {
 }
 exports.SubmitPromptDto = SubmitPromptDto;
@@ -2565,7 +2607,7 @@ let PromptsController = class PromptsController {
     }
     async buy(dto) {
         try {
-            return await this.prompts.buy(dto.signature, dto.wallet);
+            return await this.prompts.buy(dto.signature, dto.wallet, dto.currency || 'SOL');
         }
         catch (e) {
             throw new common_1.BadRequestException(e.message);
@@ -2640,18 +2682,264 @@ const sim_module_1 = __nccwpck_require__(54298);
 const solana_module_1 = __nccwpck_require__(21416);
 const viewer_prompts_service_1 = __nccwpck_require__(1168);
 const prompts_controller_1 = __nccwpck_require__(23670);
+const relay_controller_1 = __nccwpck_require__(84524);
+const relay_client_service_1 = __nccwpck_require__(28919);
+const scene_controller_1 = __nccwpck_require__(3015);
 let PromptsModule = class PromptsModule {
 };
 exports.PromptsModule = PromptsModule;
 exports.PromptsModule = PromptsModule = __decorate([
     (0, common_1.Module)({
         imports: [sim_module_1.SimModule, solana_module_1.SolanaModule],
-        providers: [viewer_prompts_service_1.ViewerPromptsService],
-        controllers: [prompts_controller_1.PromptsController],
+        providers: [viewer_prompts_service_1.ViewerPromptsService, relay_client_service_1.RelayClientService],
+        controllers: [prompts_controller_1.PromptsController, relay_controller_1.RelayController, scene_controller_1.SceneController],
         exports: [viewer_prompts_service_1.ViewerPromptsService],
     })
 ], PromptsModule);
 //# sourceMappingURL=prompts.module.js.map
+
+/***/ }),
+
+/***/ 28919:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.RelayClientService = void 0;
+const common_1 = __nccwpck_require__(85897);
+const viewer_prompts_service_1 = __nccwpck_require__(1168);
+const sim_store_service_1 = __nccwpck_require__(9955);
+const host_config_service_1 = __nccwpck_require__(85010);
+let RelayClientService = class RelayClientService {
+    constructor(prompts, store, host) {
+        this.prompts = prompts;
+        this.store = store;
+        this.host = host;
+        this.logger = new common_1.Logger('RelayClient');
+        this.pollMs = Number(process.env.RELAY_POLL_MS || 3000);
+        this.busy = false;
+        this.lastUrl = '';
+    }
+    onModuleInit() {
+        if (process.env.RELAY_MODE === '1')
+            return;
+        this.prompts.onExecuted = (p) => {
+            if (p.relayId)
+                void this.report(p.relayId, p.resultTitle || p.text);
+        };
+        this.timer = setInterval(() => void this.poll(), this.pollMs);
+    }
+    onModuleDestroy() {
+        if (this.timer)
+            clearInterval(this.timer);
+    }
+    async poll() {
+        if (this.busy)
+            return;
+        const url = this.host.relayUrl;
+        const secret = this.host.relaySecret;
+        if (!url || !secret)
+            return;
+        if (url !== this.lastUrl) {
+            this.lastUrl = url;
+            this.logger.log(`Relay client → ${url} · pulling viewer donations`);
+        }
+        this.busy = true;
+        try {
+            const agentIds = this.store.agents.map((a) => a.id);
+            const res = await fetch(`${url}/api/relay/pull`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ secret, agentIds }),
+            });
+            if (!res.ok)
+                return;
+            const j = (await res.json());
+            for (const p of j.prompts || [])
+                this.prompts.injectFromRelay(p);
+            if (j.prompts && j.prompts.length)
+                this.logger.log(`Pulled ${j.prompts.length} viewer donation(s)`);
+        }
+        catch {
+        }
+        finally {
+            this.busy = false;
+        }
+    }
+    async report(relayId, resultTitle) {
+        const url = this.host.relayUrl;
+        const secret = this.host.relaySecret;
+        if (!url || !secret)
+            return;
+        try {
+            await fetch(`${url}/api/relay/executed`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ secret, id: relayId, resultTitle }),
+            });
+        }
+        catch {
+        }
+    }
+};
+exports.RelayClientService = RelayClientService;
+exports.RelayClientService = RelayClientService = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [viewer_prompts_service_1.ViewerPromptsService,
+        sim_store_service_1.SimStore,
+        host_config_service_1.HostConfigService])
+], RelayClientService);
+//# sourceMappingURL=relay-client.service.js.map
+
+/***/ }),
+
+/***/ 84524:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.RelayController = void 0;
+const common_1 = __nccwpck_require__(85897);
+const crypto_1 = __nccwpck_require__(76982);
+const viewer_prompts_service_1 = __nccwpck_require__(1168);
+const sim_store_service_1 = __nccwpck_require__(9955);
+let RelayController = class RelayController {
+    constructor(prompts, store) {
+        this.prompts = prompts;
+        this.store = store;
+        this.secret = process.env.RELAY_SECRET || '';
+    }
+    auth(s) {
+        if (!this.secret)
+            throw new common_1.UnauthorizedException('relay secret not configured');
+        const a = (0, crypto_1.createHash)('sha256').update(String(s || '')).digest();
+        const b = (0, crypto_1.createHash)('sha256').update(this.secret).digest();
+        if (!(0, crypto_1.timingSafeEqual)(a, b))
+            throw new common_1.UnauthorizedException('bad relay secret');
+    }
+    pull(b) {
+        this.auth(b?.secret);
+        const ids = Array.isArray(b?.agentIds) && b.agentIds.length ? b.agentIds : this.store.agents.map((a) => a.id);
+        const prompts = this.prompts.relayPull(ids, Math.min(Math.max(Number(b?.max) || 5, 1), 20));
+        return { prompts };
+    }
+    executed(b) {
+        this.auth(b?.secret);
+        return this.prompts.relayExecuted(String(b?.id || ''), String(b?.resultTitle || ''));
+    }
+};
+exports.RelayController = RelayController;
+__decorate([
+    (0, common_1.Post)('pull'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], RelayController.prototype, "pull", null);
+__decorate([
+    (0, common_1.Post)('executed'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], RelayController.prototype, "executed", null);
+exports.RelayController = RelayController = __decorate([
+    (0, common_1.Controller)('api/relay'),
+    __metadata("design:paramtypes", [viewer_prompts_service_1.ViewerPromptsService,
+        sim_store_service_1.SimStore])
+], RelayController);
+//# sourceMappingURL=relay.controller.js.map
+
+/***/ }),
+
+/***/ 3015:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SceneController = void 0;
+const common_1 = __nccwpck_require__(85897);
+const events_gateway_1 = __nccwpck_require__(92876);
+let SceneController = class SceneController {
+    constructor(events) {
+        this.events = events;
+        this.current = '';
+        this.lastAt = 0;
+    }
+    get() {
+        return { agent: this.current, t: this.lastAt };
+    }
+    set(b) {
+        const a = String(b?.agent || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '')
+            .slice(0, 20);
+        if (!a)
+            return { ok: false };
+        const now = Date.now();
+        if (a === this.current && now - this.lastAt < 800)
+            return { ok: true, agent: a };
+        this.current = a;
+        this.lastAt = now;
+        this.events.emit('scene', { agent: a, t: now });
+        return { ok: true, agent: a };
+    }
+};
+exports.SceneController = SceneController;
+__decorate([
+    (0, common_1.Get)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], SceneController.prototype, "get", null);
+__decorate([
+    (0, common_1.Post)(),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], SceneController.prototype, "set", null);
+exports.SceneController = SceneController = __decorate([
+    (0, common_1.Controller)('api/scene'),
+    __metadata("design:paramtypes", [events_gateway_1.EventsGateway])
+], SceneController);
+//# sourceMappingURL=scene.controller.js.map
 
 /***/ }),
 
@@ -2686,6 +2974,18 @@ function tiersFromEnv() {
     ];
     return t.sort((a, b) => a.sol - b.sol);
 }
+function usdcTiersFromEnv() {
+    return [
+        { usdc: Number(process.env.PROMPT_TIER_1_USDC || 5), prompts: Number(process.env.PROMPT_TIER_1_COUNT || 5) },
+        { usdc: Number(process.env.PROMPT_TIER_2_USDC || 10), prompts: Number(process.env.PROMPT_TIER_2_COUNT || 10) },
+    ].sort((a, b) => a.usdc - b.usdc);
+}
+function tokenTiersFromEnv() {
+    return [
+        { amount: Number(process.env.PROMPT_TIER_1_TOKEN || 100000), prompts: Number(process.env.PROMPT_TIER_1_COUNT || 5) },
+        { amount: Number(process.env.PROMPT_TIER_2_TOKEN || 250000), prompts: Number(process.env.PROMPT_TIER_2_COUNT || 10) },
+    ].sort((a, b) => a.amount - b.amount);
+}
 let ViewerPromptsService = class ViewerPromptsService {
     constructor(store, solana, events) {
         this.store = store;
@@ -2693,11 +2993,30 @@ let ViewerPromptsService = class ViewerPromptsService {
         this.events = events;
         this.logger = new common_1.Logger('ViewerPrompts');
         this.tiers = tiersFromEnv();
+        this.usdcTiers = usdcTiersFromEnv();
+        this.tokenTiers = tokenTiersFromEnv();
         this.credits = {};
         this.purchases = [];
         this.pending = [];
+        this.inflight = [];
         this.history = [];
+        this.onExecuted = null;
         this.load();
+        if (process.env.RELAY_MODE === '1') {
+            setInterval(() => this.reapInflight(), 5000);
+        }
+    }
+    reapInflight() {
+        const cutoff = Date.now() - Number(process.env.RELAY_INFLIGHT_TTL_MS || 45000);
+        for (let i = this.inflight.length - 1; i >= 0; i--) {
+            const p = this.inflight[i];
+            if ((p.consumedAt ?? 0) < cutoff) {
+                this.inflight.splice(i, 1);
+                p.status = 'queued';
+                this.pending.unshift(p);
+                this.logger.warn(`Re-queued un-acked directive ${p.id} (host didn't confirm)`);
+            }
+        }
     }
     load() {
         try {
@@ -2722,12 +3041,19 @@ let ViewerPromptsService = class ViewerPromptsService {
         }
     }
     config() {
+        const s = this.solana.config();
         return {
             tiers: this.tiers,
+            usdcTiers: this.usdcTiers,
+            tokenTiers: this.tokenTiers,
+            currencies: this.solana.tokenMint ? ['SOL', 'USDC', 'TOKEN'] : ['SOL', 'USDC'],
+            usdcMint: this.solana.usdcMint,
+            tokenMint: this.solana.tokenMint || '',
+            tokenSymbol: this.solana.tokenSymbol,
             maxLen: MAX_LEN,
-            treasury: this.solana.config().treasury,
-            rpcUrl: this.solana.config().rpcUrl,
-            cluster: this.solana.config().cluster,
+            treasury: s.treasury,
+            rpcUrl: s.rpcUrl,
+            cluster: s.cluster,
             minSol: this.tiers[0].sol,
         };
     }
@@ -2741,31 +3067,83 @@ let ViewerPromptsService = class ViewerPromptsService {
                 best = t;
         return best;
     }
-    async buy(signature, wallet) {
+    tierForUsdc(usdc) {
+        let best = null;
+        for (const t of this.usdcTiers)
+            if (usdc + 1e-6 >= t.usdc)
+                best = t;
+        return best;
+    }
+    tierForToken(amount) {
+        let best = null;
+        for (const t of this.tokenTiers)
+            if (amount + 1e-6 >= t.amount)
+                best = t;
+        return best;
+    }
+    async buy(signature, wallet, currency = 'SOL') {
         if (this.store.processedSignatures.has(signature)) {
             throw new Error('This transaction has already been counted');
         }
-        const res = await this.solana.verifyBacking(signature, wallet);
-        if (!res.ok)
-            throw new Error(res.reason || 'Could not verify the transaction');
-        const tier = this.tierFor(res.sol);
-        if (!tier)
-            throw new Error(`Payment below the smallest tier (◎${this.tiers[0].sol})`);
         this.store.processedSignatures.add(signature);
+        let amount;
+        let prompts;
+        let unit;
+        try {
+            if (currency === 'TOKEN') {
+                if (!this.solana.tokenMint)
+                    throw new Error('$5IM token is not live yet');
+                const res = await this.solana.verifyTokenBurn(signature, this.solana.tokenMint, wallet);
+                if (!res.ok)
+                    throw new Error(res.reason || 'Could not verify the burn');
+                const tier = this.tierForToken(res.amount);
+                if (!tier)
+                    throw new Error(`Burn below the smallest tier (${this.tokenTiers[0].amount} $${this.solana.tokenSymbol})`);
+                amount = res.amount;
+                prompts = tier.prompts;
+                unit = '🔥';
+            }
+            else if (currency === 'USDC') {
+                const res = await this.solana.verifyTokenPayment(signature, this.solana.usdcMint, wallet);
+                if (!res.ok)
+                    throw new Error(res.reason || 'Could not verify the transaction');
+                const tier = this.tierForUsdc(res.amount);
+                if (!tier)
+                    throw new Error(`Payment below the smallest tier ($${this.usdcTiers[0].usdc} USDC)`);
+                amount = res.amount;
+                prompts = tier.prompts;
+                unit = '$';
+            }
+            else {
+                const res = await this.solana.verifyBacking(signature, wallet);
+                if (!res.ok)
+                    throw new Error(res.reason || 'Could not verify the transaction');
+                const tier = this.tierFor(res.sol);
+                if (!tier)
+                    throw new Error(`Payment below the smallest tier (◎${this.tiers[0].sol})`);
+                amount = res.sol;
+                prompts = tier.prompts;
+                unit = '◎';
+            }
+        }
+        catch (e) {
+            this.store.processedSignatures.delete(signature);
+            throw e;
+        }
         this.store.persist();
         const purchase = {
             id: this.store.newId('pp'),
             signature,
             wallet,
             walletShort: this.store.shortWallet(wallet),
-            sol: res.sol,
-            prompts: tier.prompts,
+            sol: amount,
+            prompts,
             t: Date.now(),
         };
         this.purchases.unshift(purchase);
-        this.credits[wallet] = (this.credits[wallet] ?? 0) + tier.prompts;
+        this.credits[wallet] = (this.credits[wallet] ?? 0) + prompts;
         this.persist();
-        this.logger.log(`${purchase.walletShort} bought ${tier.prompts} prompts for ◎${res.sol}`);
+        this.logger.log(`${purchase.walletShort} bought ${prompts} prompts for ${unit}${amount} ${currency}`);
         return { ok: true, purchase, credits: this.credits[wallet], explorer: `https://solscan.io/tx/${signature}` };
     }
     submit(wallet, agentId, text) {
@@ -2820,10 +3198,79 @@ let ViewerPromptsService = class ViewerPromptsService {
         if (this.history.length > 100)
             this.history.length = 100;
         this.events.emit('viewer-prompt', { prompt: p });
+        if (this.onExecuted) {
+            try {
+                this.onExecuted(p);
+            }
+            catch {
+            }
+        }
+    }
+    relayPull(agentIds, max = 5) {
+        const out = [];
+        for (let i = 0; i < this.pending.length && out.length < max;) {
+            const p = this.pending[i];
+            if (agentIds.includes(p.agentId)) {
+                p.status = 'sent';
+                p.consumedAt = Date.now();
+                this.pending.splice(i, 1);
+                this.inflight.push(p);
+                out.push(p);
+                this.events.emit('viewer-prompt', { prompt: p });
+            }
+            else {
+                i++;
+            }
+        }
+        return out;
+    }
+    relayExecuted(id, resultTitle) {
+        const idx = this.inflight.findIndex((x) => x.id === id);
+        const p = idx >= 0 ? this.inflight[idx] : this.history.find((x) => x.id === id);
+        if (!p)
+            return { ok: false };
+        if (idx >= 0)
+            this.inflight.splice(idx, 1);
+        p.status = 'executed';
+        p.consumedAt = Date.now();
+        p.resultTitle = (resultTitle || '').replace(/[\x00-\x1f\x7f]+/g, ' ').trim().slice(0, 120);
+        this.history.unshift(p);
+        if (this.history.length > 100)
+            this.history.length = 100;
+        this.events.emit('viewer-prompt', { prompt: p });
+        return { ok: true };
+    }
+    injectFromRelay(p) {
+        if (!this.store.agents.find((a) => a.id === p.agentId))
+            return;
+        const prompt = {
+            id: this.store.newId('vp'),
+            relayId: p.id,
+            fromRelay: true,
+            agentId: p.agentId,
+            wallet: p.wallet || '',
+            walletShort: p.walletShort || (p.wallet ? this.store.shortWallet(p.wallet) : 'viewer'),
+            text: p.text,
+            t: Date.now(),
+            status: 'queued',
+        };
+        this.pending.push(prompt);
+        const agent = this.store.agents.find((a) => a.id === p.agentId);
+        const act = {
+            id: this.store.newId('act'),
+            t: prompt.t,
+            type: 'system',
+            agentId: p.agentId,
+            text: `🎟️ ${prompt.walletShort} directed ${agent.simName}: "${prompt.text}"`,
+            icon: '🎟️',
+        };
+        this.store.pushActivity(act);
+        this.events.emit('activity', act);
+        this.events.emit('viewer-prompt', { prompt, queued: this.queueDepth(p.agentId) });
     }
     recent() {
         return {
-            pending: this.pending.slice(0, 40),
+            pending: [...this.pending, ...this.inflight].slice(0, 40),
             history: this.history.slice(0, 40),
             purchases: this.purchases.slice(0, 20),
         };
@@ -3372,6 +3819,7 @@ let SolanaService = class SolanaService {
         this.minSol = Number(process.env.MIN_BACKING_SOL || 0.01);
         this.tokenSymbol = process.env.TOKEN_SYMBOL || '5IM';
         this.tokenMint = process.env.TOKEN_MINT || '';
+        this.usdcMint = process.env.USDC_MINT || 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
         this.rewardRate = Number(process.env.REWARD_5IM_PER_SOL || 12000);
     }
     onModuleInit() {
@@ -3466,16 +3914,66 @@ let SolanaService = class SolanaService {
         const delta = post - pre;
         if (delta <= 0)
             return { ok: false, reason: 'No SOL credited to the treasury' };
-        if (expectedWallet) {
-            const signer = keys.find((k) => k.signer);
-            if (signer && signer.pubkey.toBase58() !== expectedWallet) {
-            }
+        if (expectedWallet && !keys.some((k) => k.signer && k.pubkey.toBase58() === expectedWallet)) {
+            return { ok: false, reason: 'Payment was not signed by the claiming wallet' };
         }
         const sol = delta / web3_js_1.LAMPORTS_PER_SOL;
         if (sol + 1e-9 < this.minSol) {
             return { ok: false, reason: `Below minimum backing of ◎${this.minSol}` };
         }
         return { ok: true, lamports: delta, sol: Number(sol.toFixed(6)), blockTime: tx.blockTime ?? null };
+    }
+    async verifyTokenPayment(signature, mint, expectedWallet) {
+        if (!signature || signature.length < 60)
+            return { ok: false, reason: 'Malformed transaction signature' };
+        let tx;
+        try {
+            tx = await this.connection.getParsedTransaction(signature, { maxSupportedTransactionVersion: 0, commitment: 'confirmed' });
+        }
+        catch (e) {
+            return { ok: false, reason: `RPC error: ${e.message}` };
+        }
+        if (!tx)
+            return { ok: false, reason: 'Transaction not found or not yet confirmed' };
+        if (tx.meta?.err)
+            return { ok: false, reason: 'Transaction failed on-chain' };
+        if (expectedWallet && !tx.transaction.message.accountKeys.some((k) => k.signer && k.pubkey.toBase58() === expectedWallet)) {
+            return { ok: false, reason: 'Payment was not signed by the claiming wallet' };
+        }
+        const treasury58 = this.treasury.toBase58();
+        const post = (tx.meta?.postTokenBalances ?? []).find((b) => b.owner === treasury58 && b.mint === mint);
+        if (!post)
+            return { ok: false, reason: 'Transaction does not credit the treasury token account' };
+        const pre = (tx.meta?.preTokenBalances ?? []).find((b) => b.accountIndex === post.accountIndex);
+        const before = pre ? Number(pre.uiTokenAmount.uiAmount || 0) : 0;
+        const after = Number(post.uiTokenAmount.uiAmount || 0);
+        const delta = after - before;
+        if (delta <= 0)
+            return { ok: false, reason: 'No tokens credited to the treasury' };
+        return { ok: true, amount: Number(delta.toFixed(6)), blockTime: tx.blockTime ?? null };
+    }
+    async verifyTokenBurn(signature, mint, expectedWallet) {
+        if (!signature || signature.length < 60)
+            return { ok: false, reason: 'Malformed transaction signature' };
+        let tx;
+        try {
+            tx = await this.connection.getParsedTransaction(signature, { maxSupportedTransactionVersion: 0, commitment: 'confirmed' });
+        }
+        catch (e) {
+            return { ok: false, reason: `RPC error: ${e.message}` };
+        }
+        if (!tx)
+            return { ok: false, reason: 'Transaction not found or not yet confirmed' };
+        if (tx.meta?.err)
+            return { ok: false, reason: 'Transaction failed on-chain' };
+        if (expectedWallet && !tx.transaction.message.accountKeys.some((k) => k.signer && k.pubkey.toBase58() === expectedWallet)) {
+            return { ok: false, reason: 'Burn was not signed by the claiming wallet' };
+        }
+        const sumFor = (arr = []) => arr.filter((b) => b.mint === mint).reduce((s, b) => s + Number(b.uiTokenAmount.uiAmount || 0), 0);
+        const burned = sumFor(tx.meta?.preTokenBalances ?? []) - sumFor(tx.meta?.postTokenBalances ?? []);
+        if (burned <= 0)
+            return { ok: false, reason: 'No tokens were burned in this transaction' };
+        return { ok: true, amount: Number(burned.toFixed(6)), blockTime: tx.blockTime ?? null };
     }
 };
 exports.SolanaService = SolanaService;

@@ -77,6 +77,14 @@
   summary{cursor:pointer;color:var(--dim);font-size:11px;letter-spacing:.18em;text-transform:uppercase;list-style:none}
   summary::-webkit-details-marker{display:none}
   .empty{color:var(--mut);text-align:center;padding:26px;border:1px dashed var(--hair);border-radius:12px;margin-top:12px}
+  .donfeed{ max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:6px; }
+  .donrow{ display:flex; align-items:baseline; gap:7px; flex-wrap:wrap; padding:8px 10px; border-radius:8px;
+    background:rgba(47,168,255,.06); border:1px solid var(--hair); font-size:12px; animation:tradeIn .3s ease; }
+  .donrow.is-done{ opacity:.6; }
+  .donwho{ font-family:var(--mono); color:var(--mut); }
+  .donar{ color:var(--dim); } .donag{ color:var(--ink); }
+  .dontxt{ flex:1 1 100%; color:var(--mut); font-style:italic; font-family:var(--serif); }
+  .dontag{ margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--acc); }
 </style>
 </head>
 <body>
@@ -115,6 +123,19 @@
       </div>
     </div>
     <div id="sims"></div>
+  </div>
+
+  <!-- 3 · live donations from the public site -->
+  <div class="step">
+    <div class="slabel"><span class="snum">🎟️</span> Live donations <span id="relayState" class="mut" style="font-weight:400;letter-spacing:0;text-transform:none;margin-left:6px">— not connected</span></div>
+    <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <input id="relayUrl" placeholder="https://5imulites.live" />
+        <input id="relaySecret" type="password" placeholder="relay secret" autocomplete="off" />
+        <button onclick="saveRelay()">Connect</button>
+      </div>
+      <div id="donFeed" class="donfeed"><div class="mut" style="text-align:center;padding:16px">Donations from viewers appear here, per agent.</div></div>
+    </div>
   </div>
 
   <!-- big action -->
@@ -164,7 +185,7 @@ const MODELS = [
   'deepseek/deepseek-v3.2','qwen/qwen3.6-flash','qwen/qwen3.7-max',
 ];
 const PRETTY = {'openai':'GPT','anthropic':'Claude','google':'Gemini','deepseek':'DeepSeek','qwen':'Qwen'};
-let STATE=null,SIMS=[],GAME={},LOGS=[],ENGINE=null;
+let STATE=null,SIMS=[],GAME={},LOGS=[],ENGINE=null,DON=null;
 
 async function j(u,o){const r=await fetch(u,o);if(!r.ok)throw new Error((await r.json().catch(()=>({}))).message||r.status);return r.json();}
 async function post(u,b){return j(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b||{})});}
@@ -176,8 +197,8 @@ function modelOptions(sel){return MODELS.concat(sel&&!MODELS.includes(sel)?[sel]
 
 async function refresh(){
   try{
-    const [host,sims,logs]=await Promise.all([j('/api/host'),j('/api/host/sims').catch(()=>({sims:[]})),j('/api/logs').catch(()=>({logs:[]}))]);
-    STATE=host;ENGINE=host.engine;GAME=sims;SIMS=sims.sims||[];LOGS=logs.logs||[];render();
+    const [host,sims,logs,don]=await Promise.all([j('/api/host'),j('/api/host/sims').catch(()=>({sims:[]})),j('/api/logs').catch(()=>({logs:[]})),j('/api/prompts/recent').catch(()=>({pending:[],history:[]}))]);
+    STATE=host;ENGINE=host.engine;GAME=sims;SIMS=sims.sims||[];LOGS=logs.logs||[];DON=don;render();
   }catch(e){}
 }
 function setDot(id,c){document.getElementById(id).className='dot '+c;}
@@ -215,6 +236,18 @@ function render(){
     gs.textContent=mapped?'Press Start, or change a brain below.':'Pick a brain for each Sim, or use Auto-assign.';
     ab.style.display=(SIMS.length>1&&mapped<SIMS.length)?'inline-block':'none';
   }
+
+  // relay (donations) status + feed
+  const rs=document.getElementById('relayState');
+  if(rs) rs.innerHTML = c.relayConfigured ? '<span class=ok>● connected · '+(c.relayUrl||'')+'</span>' : '— not connected (enter relay URL + secret)';
+  if(document.activeElement.id!=='relayUrl') document.getElementById('relayUrl').value = c.relayUrl || 'https://5imulites.live';
+  const nameOf=(id)=>{const a=(STATE.agents||[]).find(x=>x.id===id);return a?a.simName:id;};
+  const drows=[].concat((DON&&DON.pending)||[],(DON&&DON.history)||[]).sort((a,b)=>(b.t||0)-(a.t||0)).slice(0,30);
+  const df=document.getElementById('donFeed');
+  if(df) df.innerHTML = drows.length ? drows.map(p=>{
+    const done=p.status==='executed', sent=p.status==='sent';
+    return `<div class="donrow ${done?'is-done':''}"><span class="donwho">${esc(p.walletShort||p.wallet||'viewer')}</span><span class="donar">→</span><b class="donag">${esc(nameOf(p.agentId))}</b><span class="dontxt">“${esc(p.text||'')}”</span><span class="dontag">${done?'✅ done':sent?'▶ running':'⏳ queued'}</span></div>`;
+  }).join('') : '<div class="mut" style="text-align:center;padding:16px">Donations from viewers appear here, per agent.</div>';
 
   // sim cards
   const last={};for(const l of LOGS){if(!last[l.agentId])last[l.agentId]=l;}
@@ -256,6 +289,12 @@ async function saveAndStart(){
   if(k){await post('/api/host/config',{openRouterKey:k});document.getElementById('key').value='';}
   await post('/api/host/config',{bridgeUrl:document.getElementById('bridge').value.trim()||'http://127.0.0.1:8123'});
   await post('/api/host/start');refresh();
+}
+async function saveRelay(){
+  const url=document.getElementById('relayUrl').value.trim()||'https://5imulites.live';
+  const secret=document.getElementById('relaySecret').value.trim();
+  const body={relayUrl:url}; if(secret) body.relaySecret=secret;
+  await post('/api/host/config',body); document.getElementById('relaySecret').value=''; refresh();
 }
 async function stopAll(){await post('/api/host/stop');refresh();}
 
