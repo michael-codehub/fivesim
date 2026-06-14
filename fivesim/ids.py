@@ -17,6 +17,7 @@ INTERACTION_GUIDS = {
     'sleep_in_bed':   13391,
     'shower':         13396,
     'talk_to':        13998,   # social super affordance (needs a target sim)
+    'socialize':      13998,   # same social super affordance — fallback for socials
 }
 
 # Robust actuation: instead of a fragile hardcoded interaction GUID pushed onto
@@ -29,10 +30,11 @@ INTERACTION_AFFORDANCE_NAMES = {
     'eat_grab_quick': [['grab', 'plate'], ['grab', 'snack'], ['grab'], ['eat'], ['cook'], ['serv']],
     'shower':         [['shower'], ['takebath'], ['bathe'], ['bath']],
     'use_toilet':     [['toilet'], ['pee'], ['bladder'], ['use', 'standing']],
-    # skills / leisure — match whatever skill/fun object the lot actually has
-    'practice_skill': [['practice'], ['piano'], ['guitar'], ['violin'], ['paint'], ['easel'], ['woodwork'], ['program'], ['write']],
-    'study':          [['research'], ['study'], ['read'], ['homework']],
-    'play_fun':       [['watch'], ['channel'], ['video_game'], ['play_'], ['game'], ['dance'], ['read'], ['browse']],
+    # skills / leisure — fragments are a SUPERSET of the LOT_CATALOG labels that
+    # gate each action, so anything the menu offered can actually be actuated.
+    'practice_skill': [['practice'], ['piano'], ['guitar'], ['violin'], ['sing'], ['instrument'], ['paint'], ['easel'], ['woodwork'], ['program'], ['write'], ['read'], ['book'], ['computer'], ['browse'], ['video_game'], ['game'], ['chess'], ['darts'], ['arcade']],
+    'study':          [['research'], ['study'], ['read'], ['homework'], ['computer'], ['browse'], ['program']],
+    'play_fun':       [['watch'], ['channel'], ['video_game'], ['play_'], ['game'], ['dance'], ['read'], ['browse'], ['piano'], ['guitar'], ['violin'], ['sing'], ['instrument'], ['paint'], ['sketch'], ['easel'], ['woodwork'], ['garden'], ['plant'], ['water_'], ['arcade'], ['chess'], ['darts']],
     'exercise':       [['workout'], ['exercise'], ['treadmill'], ['yoga'], ['lift'], ['jog'], ['stretch']],
     'meditate':       [['meditate'], ['yoga']],
     # social — searched on the TARGET Sim's own affordances

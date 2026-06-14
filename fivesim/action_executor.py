@@ -64,6 +64,69 @@ def _set_speed(n):
     services.game_clock_service().set_clock_speed(modes.get(int(n), clock.ClockSpeedMode.NORMAL))
 
 
+# Remember the last fivesim-pushed affordance per Sim, so we can tell when the Sim
+# is STILL performing our action (and must not be interrupted) and report that to
+# the host. Keyed by str(sim_id).
+_pushed = {}
+
+
+def _sim_id_str(sim):
+    try:
+        return str(sim.sim_info.sim_id)
+    except Exception:
+        try:
+            return str(sim.id)
+        except Exception:
+            return None
+
+
+def _mark_pushed(sim, aff_name):
+    sid = _sim_id_str(sim)
+    if sid is not None:
+        _pushed[sid] = (aff_name or '').lower()
+
+
+def running_affordance_names(sim):
+    """Lowercased __name__s of the Sim's running + queued interactions."""
+    names = []
+    for si in _running_interactions(sim):
+        try:
+            nm = getattr(getattr(si, 'affordance', None), '__name__', '') or ''
+            if nm:
+                names.append(nm.lower())
+        except Exception:
+            continue
+    return names
+
+
+def is_fivesim_running(sim):
+    """True if the Sim is still performing the LAST fivesim-pushed action — the
+    host uses this to avoid re-deciding (which would cancel it mid-animation)."""
+    sid = _sim_id_str(sim)
+    if sid is None:
+        return False
+    want = _pushed.get(sid)
+    if not want:
+        return False
+    return want in running_affordance_names(sim)
+
+
+def _make_context(sim):
+    """A forced, user-directed, high-priority push that preempts the queue — the
+    robust pattern (matches Sims4CommunityLibrary). Falls back to the basic 3-arg
+    context if a kwarg isn't supported on this game build."""
+    src = InteractionContext.SOURCE_SCRIPT_WITH_USER_INTENT
+    try:
+        from interactions.context import QueueInsertStrategy
+        return InteractionContext(
+            sim, src, Priority.High,
+            run_priority=Priority.High,
+            insert_strategy=QueueInsertStrategy.NEXT,
+        )
+    except Exception:
+        return InteractionContext(sim, src, Priority.High)
+
+
 def execute_action(action):
     """
     action = { "type": "console"|"interaction"|"go_to_work"|"modify_funds",
@@ -196,6 +259,10 @@ def _push_interaction(action):
     elif action.get('target_object_id') is not None:
         explicit_target = services.object_manager().get(int(action['target_object_id']))
 
+    # a social interaction with nobody to talk to → clean no-op (never talk to self)
+    if name == 'socialize' and explicit_target is None:
+        return {'ok': False, 'error': 'no_target_present', 'interaction': name}
+
     affordance = None
     target = explicit_target
     aff_name = None
@@ -222,18 +289,28 @@ def _push_interaction(action):
 
     # already doing exactly this? let it continue instead of restarting (no thrash)
     if _is_running(sim, affordance):
+        _mark_pushed(sim, aff_name)
         return {'ok': True, 'mode': 'interaction', 'affordance': aff_name, 'queued': False, 'note': 'already_running'}
+
+    # ANTI-THRASH: if the Sim is still performing the LAST fivesim-pushed action
+    # and this isn't an explicit override (paid directive / busy-cap), let it
+    # finish instead of cancelling it mid-animation.
+    if not action.get('interrupt') and is_fivesim_running(sim):
+        return {'ok': True, 'mode': 'interaction', 'affordance': aff_name, 'queued': False, 'note': 'still_busy'}
 
     # otherwise interrupt whatever the Sim is doing so this decision takes over
     _cancel_running(sim)
 
-    context = InteractionContext(
-        sim,
-        InteractionContext.SOURCE_SCRIPT_WITH_USER_INTENT,
-        Priority.High,
-    )
+    context = _make_context(sim)
     try:
         result = sim.push_super_affordance(affordance, target, context)
     except Exception as e:
         return {'ok': False, 'error': 'push_failed: %s' % e, 'affordance': aff_name}
-    return {'ok': bool(result), 'mode': 'interaction', 'affordance': aff_name, 'queued': bool(result)}
+    # push_super_affordance returns an EnqueueResult (test + execute); it is FALSEY
+    # when the affordance's tuned test failed or it couldn't run — i.e. the Sim
+    # would NOT actually perform it. Report that instead of a phantom success.
+    ran = bool(result)
+    if ran:
+        _mark_pushed(sim, aff_name)
+    return {'ok': ran, 'mode': 'interaction', 'affordance': aff_name,
+            'queued': ran, 'reason': None if ran else 'test_or_execute_failed'}

@@ -22,6 +22,42 @@ def list_sim_ids():
     return [si.sim_id for si in hh.sim_info_gen()]
 
 
+def list_present_sims():
+    """Every Sim instantiated on the ACTIVE LOT right now — household members who
+    are home PLUS visiting non-household Sims (neighbors, walk-bys, townies). This
+    is what lets the agent actually socialize with whoever is physically around
+    instead of being stuck with the household roster. Best-effort + never raises."""
+    out = []
+    seen = set()
+    hh = services.active_household()
+    hh_ids = set(si.sim_id for si in hh.sim_info_gen()) if hh is not None else set()
+    try:
+        mgr = services.sim_info_manager()
+        for sim in mgr.instanced_sims_gen():
+            try:
+                # only those actually on the active lot (skip Sims off elsewhere)
+                if not sim.is_on_active_lot():
+                    continue
+            except Exception:
+                pass
+            try:
+                si = sim.sim_info
+                sid = si.sim_id
+                if sid in seen:
+                    continue
+                seen.add(sid)
+                out.append({
+                    'sim_id': str(sid),
+                    'name': '{} {}'.format(si.first_name, si.last_name),
+                    'is_household': sid in hh_ids,
+                })
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return out
+
+
 def build_sim_state(sim_info):
     state = {
         'sim_id': str(sim_info.sim_id),   # 64-bit id as a string (JS rounds numbers > 2^53)
@@ -77,15 +113,19 @@ def build_sim_state(sim_info):
             pass
     state['careers'] = careers
 
-    # relationships
+    # relationships — resolve each target's NAME so the model can address real
+    # people by name (and never a placeholder that isn't in this game).
     rels = []
     rt = sim_info.relationship_tracker
     try:
         for rel in rt:
             tid = rel.target_sim_id
             try:
+                tinfo = services.sim_info_manager().get(tid)
+                tname = '{} {}'.format(tinfo.first_name, tinfo.last_name) if tinfo is not None else None
                 rels.append({
-                    'target_id': tid,
+                    'target_id': str(tid),   # 64-bit id as a string (JS rounds > 2^53)
+                    'name': tname,
                     'friendship': rt.get_relationship_score(tid),
                     'depth': rt.get_relationship_depth(tid),
                 })
@@ -101,6 +141,21 @@ def build_sim_state(sim_info):
         state['position'] = str(sim.position) if sim is not None else None
     except Exception:
         state['position'] = None
+
+    # what the Sim is doing RIGHT NOW + whether it's still our last pushed action.
+    # The host uses running_fivesim to avoid re-deciding (which would cancel the
+    # action mid-animation — the "thinks but never acts" bug).
+    try:
+        from . import action_executor as _ae
+        if sim is not None:
+            state['running'] = _ae.running_affordance_names(sim)
+            state['running_fivesim'] = bool(_ae.is_fivesim_running(sim))
+        else:
+            state['running'] = []
+            state['running_fivesim'] = False
+    except Exception:
+        state['running'] = []
+        state['running_fivesim'] = False
 
     return state
 

@@ -45,10 +45,12 @@ def _write_err(text):
 
 _available = []
 _available_at = 0.0
+_present = []
+_present_at = 0.0
 
 
 def _refresh_snapshot():
-    global _available, _available_at
+    global _available, _available_at, _present, _present_at
     agents = {}
     has_hh = state_reader.has_active_household()
     for sid in state_reader.list_sim_ids():
@@ -63,6 +65,13 @@ def _refresh_snapshot():
         except Exception:
             pass
         _available_at = now
+    # who is physically on the lot — changes as Sims come/go, refresh ~4s
+    if has_hh and (now - _present_at > 4.0):
+        try:
+            _present = state_reader.list_present_sims()
+        except Exception:
+            pass
+        _present_at = now
     for st in agents.values():
         st['available'] = _available
     bridge_server.publish_snapshot({
@@ -70,6 +79,7 @@ def _refresh_snapshot():
         'ts': now,
         'no_active_household': not has_hh,
         'available': _available,
+        'present_sims': _present,
     })
 
 
