@@ -26,6 +26,7 @@ def fivesim_help(_connection=None):
     o('  fivesim.model <agent> <model>      set the model for an agent')
     o('  fivesim.connect                    point the host at this game bridge')
     o('  fivesim.bridge                     force-start + health-check the game bridge')
+    o('  fivesim.act <action>               test an action in-game (work/sleep/eat/shower/toilet)')
     o('  fivesim.start / fivesim.stop       start / stop the AI playing')
     o('  fivesim.status                     show host + engine status')
 
@@ -82,6 +83,39 @@ def fivesim_bridge(_connection=None):
             o('  -> bridge healthy. In the app: Load Sims from game.')
     except Exception as e:
         o('bridge diagnostics failed: %r (started=%s)' % (e, ok))
+
+
+@sims4.commands.Command('fivesim.act', command_type=sims4.commands.CommandType.Live)
+def fivesim_act(action='sleep', sim_id: int = None, _connection=None):
+    """Directly run one action on a Sim to test in-game actuation (no host/LLM)."""
+    o = _out(_connection)
+    ACTS = {
+        'work':   {'type': 'go_to_work'},
+        'sleep':  {'type': 'interaction', 'interaction': 'sleep_in_bed'},
+        'eat':    {'type': 'interaction', 'interaction': 'eat_grab_quick'},
+        'shower': {'type': 'interaction', 'interaction': 'shower'},
+        'toilet': {'type': 'interaction', 'interaction': 'use_toilet'},
+    }
+    if action not in ACTS:
+        return o('usage: fivesim.act <work|sleep|eat|shower|toilet> [sim_id]')
+    if not sim_id:
+        hh = services.active_household()
+        if hh is None:
+            return o('no active household — load a lot first')
+        sims = list(hh.sim_info_gen())
+        if not sims:
+            return o('no sims in household')
+        sim_id = sims[0].sim_id
+    spec = dict(ACTS[action])
+    spec['sim_id'] = int(sim_id)
+    try:
+        from . import action_executor
+        res = action_executor.execute_action(spec)
+        o('fivesim.act %s on sim %s -> %s' % (action, sim_id, res))
+        if not res.get('ok'):
+            o('  (if this fails, the in-game action layer is the problem, not the host)')
+    except Exception as e:
+        o('fivesim.act failed: %r' % e)
 
 
 @sims4.commands.Command('fivesim.map', command_type=sims4.commands.CommandType.Live)
@@ -174,24 +208,22 @@ def fivesim_btn_play(sim_id: int = None, _connection=None):
         if not sim_id:
             o('fivesim: no sim id from the menu')
             return
-        agent = AGENTS[0]
-        ok, st = host_client.status()
-        if ok:
-            used = (st.get('config') or {}).get('simMap') or {}
-            taken = {str(v) for v in used.values() if v}
-            if str(sim_id) in taken:
-                agent = next((a for a, v in used.items() if str(v) == str(sim_id)), agent)
-            else:
-                agent = next((a for a in AGENTS if not used.get(a)), AGENTS[0])
-        host_client.set_sim(agent, int(sim_id))
+        _ensure_bridge()
         host_client.connect_bridge(BRIDGE_URL)
+        ok, res = host_client.assign(int(sim_id))   # host picks a free model-slot
+        if not ok:
+            o('fivesim: host app not running (%s)' % res.get('reason', res))
+            _notify('5imulites', 'Open the 5imulites app, then try again.')
+            return
+        agent = res.get('agent', 'ai')
+        model = ((res.get('config') or {}).get('models') or {}).get(agent, agent)
         ok2, _res = host_client.start()
         if ok2:
-            o('fivesim: %s is now playing sim %s' % (agent, sim_id))
-            _notify('5imulites', '%s is now playing this Sim.' % agent.upper())
+            o('fivesim: sim %s is now played by %s (%s)' % (sim_id, agent, model))
+            _notify('5imulites', 'This Sim is now played by %s.\nChange its brain anytime in the 5imulites app.' % model)
         else:
-            o('fivesim: mapped sim %s to %s, but the host app is not running' % (sim_id, agent))
-            _notify('5imulites', 'Sim mapped — start the 5imulites host app to begin.')
+            o('fivesim: mapped sim %s to %s, but the host is not running' % (sim_id, agent))
+            _notify('5imulites', 'Sim mapped — open the 5imulites app to begin.')
     except Exception as e:
         o('fivesim: %r' % e)
 

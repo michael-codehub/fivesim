@@ -71,6 +71,14 @@ def set_sim(agent_id, sim_id):
     # host's JS JSON.parse for ids above 2^53.
     return set_config({'simMap': {agent_id: str(int(sim_id))}})
 
+def assign(sim_id, model=None):
+    # let the host pick a free model-slot for this Sim and enable only Sim-bound
+    # agents (sim-centric mapping). Returns {agent, config}.
+    body = {'sim_id': str(int(sim_id))}
+    if model:
+        body['model'] = model
+    return _request('POST', '/api/host/assign', body)
+
 def connect_bridge(bridge_url):
     return set_config({'bridgeUrl': bridge_url})
 

@@ -1639,7 +1639,7 @@ let HostConfigService = class HostConfigService {
         return v && v !== '0' ? String(v) : null;
     }
     get decisionIntervalMs() {
-        return this.cfg.decisionIntervalMs ?? Number(process.env.DECISION_INTERVAL_MS || 32000);
+        return this.cfg.decisionIntervalMs ?? Number(process.env.DECISION_INTERVAL_MS || 15000);
     }
     set(partial) {
         if (partial.openRouterKey !== undefined)
@@ -1946,6 +1946,50 @@ let HostController = class HostController {
         this.orchestrator.stop();
         return { ok: true, running: false };
     }
+    assignedAgentFor(simId, agentIds) {
+        return agentIds.find((id) => this.host.simIdFor(id) === String(simId));
+    }
+    async assign(body) {
+        const simId = String(body?.sim_id ?? '').trim();
+        if (!simId || simId === '0')
+            return { ok: false, reason: 'sim_id required' };
+        const agentIds = this.agentIds();
+        const agent = this.assignedAgentFor(simId, agentIds) ??
+            agentIds.find((id) => !this.host.simIdFor(id)) ??
+            agentIds[0];
+        const patch = { simMap: { [agent]: simId } };
+        if (body.model)
+            patch.models = { [agent]: body.model };
+        this.host.set(patch);
+        this.host.set({ enabledAgents: agentIds.filter((id) => this.host.simIdFor(id)) });
+        await this.orchestrator.applyConfig();
+        return { ok: true, agent, config: this.host.publicState(agentIds) };
+    }
+    async unassign(body) {
+        const simId = String(body?.sim_id ?? '').trim();
+        const agentIds = this.agentIds();
+        const agent = this.assignedAgentFor(simId, agentIds);
+        if (agent) {
+            this.host.set({ simMap: { [agent]: '' } });
+            this.host.set({ enabledAgents: agentIds.filter((id) => this.host.simIdFor(id)) });
+            await this.orchestrator.applyConfig();
+        }
+        return { ok: true, config: this.host.publicState(agentIds) };
+    }
+    async autoassign() {
+        const sims = await this.driver.listSims();
+        const agentIds = this.agentIds();
+        if (!sims || !sims.length)
+            return { ok: false, reason: 'no sims detected', config: this.host.publicState(agentIds) };
+        const simMap = {};
+        agentIds.forEach((id, i) => {
+            simMap[id] = i < sims.length ? sims[i].sim_id : '';
+        });
+        this.host.set({ simMap });
+        this.host.set({ enabledAgents: agentIds.filter((id) => this.host.simIdFor(id)) });
+        await this.orchestrator.applyConfig();
+        return { ok: true, assigned: agentIds.filter((id) => this.host.simIdFor(id)).length, config: this.host.publicState(agentIds) };
+    }
 };
 exports.HostController = HostController;
 __decorate([
@@ -1979,6 +2023,26 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], HostController.prototype, "stop", null);
+__decorate([
+    (0, common_1.Post)('assign'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], HostController.prototype, "assign", null);
+__decorate([
+    (0, common_1.Post)('unassign'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], HostController.prototype, "unassign", null);
+__decorate([
+    (0, common_1.Post)('autoassign'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], HostController.prototype, "autoassign", null);
 exports.HostController = HostController = __decorate([
     (0, common_1.Controller)('api/host'),
     __metadata("design:paramtypes", [host_config_service_1.HostConfigService,

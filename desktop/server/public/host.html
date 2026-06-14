@@ -17,9 +17,8 @@
   body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:13px;line-height:1.6;
     background-image:radial-gradient(120% 70% at 50% -10%,rgba(40,80,160,.18),transparent 60%);min-height:100vh}
   a{color:var(--acc);text-decoration:none}
-  .wrap{max-width:980px;margin:0 auto;padding:22px 22px 70px}
-  /* header */
-  .top{display:flex;align-items:center;gap:14px;padding-bottom:18px;border-bottom:1px solid var(--hair);position:relative}
+  .wrap{max-width:1000px;margin:0 auto;padding:22px 22px 80px}
+  .top{display:flex;align-items:center;gap:14px;padding-bottom:18px;border-bottom:1px solid var(--hair)}
   .logo{width:46px;height:46px;border-radius:11px;box-shadow:0 0 24px rgba(47,168,255,.35)}
   .brand h1{font-family:var(--serif);font-weight:400;font-size:22px;margin:0;letter-spacing:.2px}
   .brand .sub{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
@@ -27,7 +26,6 @@
   .pill{font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:5px 10px;border:1px solid var(--hair);border-radius:999px;color:var(--mut);display:inline-flex;gap:7px;align-items:center}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--dim)}
   .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)} .dot.off{background:var(--bad)} .dot.warn{background:var(--warn)}
-  /* steps */
   .step{margin-top:20px}
   .slabel{display:flex;align-items:center;gap:10px;font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
   .snum{width:20px;height:20px;border-radius:50%;border:1px solid var(--hair);display:grid;place-items:center;color:var(--acc);font-size:11px}
@@ -37,34 +35,48 @@
   select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--mut) 50%),linear-gradient(135deg,var(--mut) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
   select option{background:#11151c;color:var(--ink)}
   input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(47,168,255,.15)}
-  input{flex:1;min-width:220px}
+  input{flex:1;min-width:200px}
   button{font-family:var(--mono);font-size:12.5px;letter-spacing:.02em;border-radius:9px;padding:11px 16px;border:1px solid var(--hair);background:rgba(233,237,244,.04);color:var(--ink);cursor:pointer;transition:.15s}
   button:hover{background:rgba(233,237,244,.09);border-color:rgba(233,237,244,.25)}
   button.primary{background:var(--acc);border-color:var(--acc);color:#05101f;font-weight:700}
   button.primary:hover{background:var(--acc2);border-color:var(--acc2)}
   button.danger{border-color:rgba(239,100,112,.4);color:var(--bad)}
   .hint{color:var(--dim);font-size:11px;margin-top:9px}
-  .ok{color:var(--ok)} .bad{color:var(--bad)} .mut{color:var(--mut)}
-  /* big action */
-  .actions{display:flex;gap:12px;margin-top:22px}
-  .actions .primary{flex:1;padding:16px;font-size:15px}
-  .actions .danger{padding:16px 22px;font-size:14px}
-  /* agents */
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:12px}
-  .agent{background:var(--panel);border:1px solid var(--hair);border-radius:12px;padding:13px;position:relative;overflow:hidden}
-  .agent .spine{position:absolute;left:0;top:0;bottom:0;width:3px}
-  .ahead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
-  .aname{font-family:var(--serif);font-size:18px}
-  .modelSel{width:100%;margin:4px 0 8px}
-  .screen{background:rgba(0,0,0,.25);border:1px solid var(--hair);border-radius:8px;padding:9px;min-height:64px;font-size:12px}
+  .ok{color:var(--ok)} .bad{color:var(--bad)} .mut{color:var(--mut)} .warn{color:var(--warn)}
+  /* game banner */
+  .gbanner{display:flex;align-items:center;gap:12px;border:1px solid var(--hair);border-radius:14px;padding:14px 16px;background:var(--panel)}
+  .gbig{font-size:22px}
+  .gbanner .gt{font-size:13px}
+  .gbanner .gs{font-size:11px;color:var(--dim)}
+  .gbanner.okb{border-color:rgba(63,201,138,.35);background:rgba(63,201,138,.06)}
+  .gbanner.warnb{border-color:rgba(230,162,60,.30);background:rgba(230,162,60,.05)}
+  .gbanner .ga{margin-left:auto;display:flex;gap:8px}
+  /* sim cards */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;margin-top:12px}
+  .sim{background:var(--panel);border:1px solid var(--hair);border-left:3px solid var(--hair);border-radius:12px;padding:14px;position:relative}
+  .sim.live{border-left-color:var(--acc)}
+  .schead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
+  .sname{font-family:var(--serif);font-size:19px}
+  .brow{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  .blabel{font-size:9.5px;letter-spacing:.14em;color:var(--dim)}
+  .brow select{flex:1;min-width:0;padding:9px 11px;font-size:12px}
+  .x{padding:8px 10px;font-size:11px;color:var(--mut)}
+  .screen{background:rgba(0,0,0,.25);border:1px solid var(--hair);border-radius:8px;padding:10px;min-height:62px;font-size:12px}
   .screen .reason{color:var(--mut);font-style:italic;font-family:var(--serif);font-size:13px;margin-top:4px}
   .think{display:inline-flex;gap:4px;align-items:center;color:var(--acc)}
   .think b{width:5px;height:5px;border-radius:50%;background:var(--acc);animation:bob .9s ease-in-out infinite}
   .think b:nth-child(2){animation-delay:.15s}.think b:nth-child(3){animation-delay:.3s}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
   .meta{display:flex;gap:10px;flex-wrap:wrap;color:var(--dim);font-size:10.5px;margin-top:7px}
-  .toggle{font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid var(--hair);cursor:pointer;color:var(--mut)}
-  .toggle.on{color:var(--ok);border-color:rgba(63,201,138,.4)}
+  .livechip{font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid var(--hair);cursor:pointer;color:var(--mut)}
+  .livechip.on{color:var(--ok);border-color:rgba(63,201,138,.4)}
+  .actions{display:flex;gap:12px;margin-top:22px}
+  .actions .primary{flex:1;padding:16px;font-size:15px}
+  .actions .danger{padding:16px 22px;font-size:14px}
+  details{margin-top:26px;border-top:1px solid var(--hair);padding-top:14px}
+  summary{cursor:pointer;color:var(--dim);font-size:11px;letter-spacing:.18em;text-transform:uppercase;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  .empty{color:var(--mut);text-align:center;padding:26px;border:1px dashed var(--hair);border-radius:12px;margin-top:12px}
 </style>
 </head>
 <body>
@@ -85,49 +97,58 @@
     <div class="slabel"><span class="snum">1</span> OpenRouter API key</div>
     <div class="card">
       <div class="row">
-        <input id="key" type="password" placeholder="sk-or-v1-…   (one key powers all 5 models)" autocomplete="off" />
+        <input id="key" type="password" placeholder="sk-or-v1-…   (one key powers every model)" autocomplete="off" />
         <button onclick="saveKey()">Save key</button>
       </div>
-      <div class="hint">Current: <span id="keyState" class="mut">—</span> · get one free at <a href="#" onclick="openExt('https://openrouter.ai/settings/keys');return false">openrouter.ai</a></div>
+      <div class="hint">Current: <span id="keyState" class="mut">—</span> · free key at <a href="#" onclick="openExt('https://openrouter.ai/settings/keys');return false">openrouter.ai</a></div>
     </div>
   </div>
 
-  <!-- 2 model -->
+  <!-- 2 game (auto-detected) -->
   <div class="step">
-    <div class="slabel"><span class="snum">2</span> Model</div>
-    <div class="card">
-      <div class="row">
-        <span class="mut">Use for everyone:</span>
-        <select id="defModel" style="flex:1;min-width:200px"></select>
-        <button onclick="applyAll()">Apply to all</button>
+    <div class="slabel"><span class="snum">2</span> Your game &amp; Sims</div>
+    <div id="gbanner" class="gbanner">
+      <span class="gbig">🎮</span>
+      <div><div class="gt" id="gtitle">Looking for The Sims 4…</div><div class="gs" id="gsub">the app finds your game automatically</div></div>
+      <div class="ga">
+        <button id="autoBtn" onclick="autoStart()" style="display:none">✨ Auto-assign &amp; Start</button>
       </div>
-      <div class="hint">Or set a different model per Sim below. Cheap default keeps your balance lasting.</div>
     </div>
-  </div>
-
-  <!-- 3 game -->
-  <div class="step">
-    <div class="slabel"><span class="snum">3</span> The game</div>
-    <div class="card">
-      <div class="row">
-        <input id="bridge" placeholder="http://127.0.0.1:8123" />
-        <button class="primary" onclick="loadSims()">Load Sims from game</button>
-      </div>
-      <div class="hint" id="simsHint">Start The Sims 4 with the mod, load a lot, then click “Load Sims from game”.</div>
-    </div>
+    <div id="sims"></div>
   </div>
 
   <!-- big action -->
   <div class="actions">
-    <button id="btnRun" class="primary" onclick="saveAndStart()">▶  Save & Start the AI</button>
+    <button id="btnRun" class="primary" onclick="saveAndStart()">▶  Start the AI</button>
     <button class="danger" onclick="stopAll()">■ Stop</button>
   </div>
 
-  <!-- agents -->
-  <div class="step">
-    <div class="slabel">Agents — one screen each</div>
-    <div id="agents" class="grid"></div>
-  </div>
+  <details>
+    <summary>Advanced</summary>
+    <div class="card" style="margin-top:12px">
+      <div class="row" style="margin-bottom:10px">
+        <span class="mut" style="min-width:90px">Bridge URL</span>
+        <input id="bridge" placeholder="http://127.0.0.1:8123" />
+        <button onclick="reloadSims()">Reload Sims</button>
+      </div>
+      <div class="row" style="margin-bottom:10px">
+        <span class="mut" style="min-width:90px">Decision every</span>
+        <select id="cadence" onchange="setCadence(this.value)" style="flex:0 0 160px">
+          <option value="8000">8 seconds</option>
+          <option value="15000">15 seconds</option>
+          <option value="30000">30 seconds</option>
+          <option value="60000">60 seconds</option>
+        </select>
+        <span class="mut" style="font-size:11px">lower = livelier, more API usage</span>
+      </div>
+      <div class="row">
+        <span class="mut" style="min-width:90px">Default brain</span>
+        <select id="defModel" style="flex:1;min-width:160px"></select>
+        <button onclick="applyAll()">Apply to all</button>
+      </div>
+      <div class="hint">The 5imulites concept runs 5 models at once. With one Sim you just give it one brain above — the rest stay idle.</div>
+    </div>
+  </details>
 </div>
 
 <script>
@@ -137,81 +158,101 @@ const MODELS = [
   'google/gemini-2.5-flash','google/gemini-2.5-pro',
   'deepseek/deepseek-v3.2','qwen/qwen3.6-flash','qwen/qwen3.7-max',
 ];
-let STATE=null,LOGS=[],ENGINE=null,SIMS=[];
+const PRETTY = {'openai':'GPT','anthropic':'Claude','google':'Gemini','deepseek':'DeepSeek','qwen':'Qwen'};
+let STATE=null,SIMS=[],GAME={},LOGS=[],ENGINE=null;
 
 async function j(u,o){const r=await fetch(u,o);if(!r.ok)throw new Error((await r.json().catch(()=>({}))).message||r.status);return r.json();}
 async function post(u,b){return j(u,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b||{})});}
 function openExt(u){ if(window.fivesim&&window.fivesim.openExternal)window.fivesim.openExternal(u); else window.open(u,'_blank'); }
 function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-
-function fillDef(){const s=document.getElementById('defModel');if(s.options.length)return;s.innerHTML=MODELS.map(m=>`<option>${m}</option>`).join('');}
+function prettyModel(m){if(!m)return '—';const v=PRETTY[m.split('/')[0]]||m.split('/')[0];return v+' · '+m.split('/').pop();}
+function fillDef(){const s=document.getElementById('defModel');if(s.options.length)return;s.innerHTML=MODELS.map(m=>`<option value="${m}">${prettyModel(m)}</option>`).join('');}
+function modelOptions(sel){return MODELS.concat(sel&&!MODELS.includes(sel)?[sel]:[]).map(m=>`<option value="${m}" ${m===sel?'selected':''}>${prettyModel(m)}</option>`).join('');}
 
 async function refresh(){
   try{
-    const [host,logs]=await Promise.all([j('/api/host'),j('/api/logs')]);
-    STATE=host;ENGINE=host.engine;LOGS=logs.logs||[];render();
+    const [host,sims,logs]=await Promise.all([j('/api/host'),j('/api/host/sims').catch(()=>({sims:[]})),j('/api/logs').catch(()=>({logs:[]}))]);
+    STATE=host;ENGINE=host.engine;GAME=sims;SIMS=sims.sims||[];LOGS=logs.logs||[];render();
   }catch(e){}
 }
 function setDot(id,c){document.getElementById(id).className='dot '+c;}
+
+function agentForSim(simId){return (STATE.agents||[]).find(a=>String((STATE.config.simMap||{})[a.id])===String(simId));}
+
 function render(){
   fillDef();
   const c=STATE.config;
   setDot('d-llm',c.llmEnabled?'on':'off');
-  setDot('d-bridge',c.bridgeConfigured?(ENGINE.bridge.connected?'on':'warn'):'');
+  setDot('d-bridge',GAME.reachable?'on':(c.bridgeConfigured?'warn':''));
   setDot('d-run',STATE.running?'on':'off');
   document.getElementById('t-run').textContent=STATE.running?'running':'stopped';
-  document.getElementById('btnRun').textContent=STATE.running?'✓ Running — restart':'▶  Save & Start the AI';
-  document.getElementById('t-stats').textContent=(ENGINE.llm.calls||0)+' decisions';
-  document.getElementById('keyState').innerHTML=c.hasKey?('<span class=ok>'+c.keyMasked+'</span>'):'<span class=bad>not set</span>';
+  document.getElementById('btnRun').textContent=STATE.running?'✓ Running':'▶  Start the AI';
+  document.getElementById('t-stats').textContent=((ENGINE.llm||{}).calls||0)+' decisions';
+  document.getElementById('keyState').innerHTML=c.hasKey?('<span class=ok>'+c.keyMasked+'</span>'):'<span class=bad>not set — paste it above</span>';
   if(document.activeElement.id!=='bridge')document.getElementById('bridge').value=c.bridgeUrl||'http://127.0.0.1:8123';
+  if(document.activeElement.id!=='cadence')document.getElementById('cadence').value=String(c.decisionIntervalMs||15000);
 
-  const byId={};for(const m of ENGINE.models)byId[m.id]=m;
+  // game banner
+  const b=document.getElementById('gbanner'),gt=document.getElementById('gtitle'),gs=document.getElementById('gsub'),ab=document.getElementById('autoBtn');
+  const mapped=SIMS.filter(s=>agentForSim(s.sim_id)).length;
+  b.className='gbanner'+(GAME.reachable&&SIMS.length?' okb':(c.bridgeConfigured&&!GAME.reachable?' warnb':''));
+  if(!GAME.reachable){
+    gt.innerHTML='The Sims 4 not detected';
+    gs.innerHTML='Open the game on a loaded lot. In-game you can press Ctrl+Shift+C → <b>fivesim.bridge</b> to check.';
+    ab.style.display='none';
+  } else if(GAME.noHousehold || !SIMS.length){
+    gt.innerHTML='Game connected — no household loaded';
+    gs.textContent='Load a lot with your Sims, the app picks them up automatically.';
+    ab.style.display='none';
+  } else {
+    gt.innerHTML='Game connected · <b>'+SIMS.length+'</b> Sim'+(SIMS.length>1?'s':'')+' found'+(mapped?(' · '+mapped+' with a brain'):'');
+    gs.textContent=mapped?'Press Start, or change a brain below.':'Pick a brain for each Sim, or use Auto-assign.';
+    ab.style.display=(SIMS.length>1&&mapped<SIMS.length)?'inline-block':'none';
+  }
+
+  // sim cards
   const last={};for(const l of LOGS){if(!last[l.agentId])last[l.agentId]=l;}
-  document.getElementById('agents').innerHTML=STATE.agents.map(a=>{
-    const m=byId[a.id]||{},thinking=(ENGINE.thinking||[]).includes(a.id),lg=last[a.id],enabled=m.enabled!==false;
-    const opts=MODELS.concat(c.models[a.id]&&!MODELS.includes(c.models[a.id])?[c.models[a.id]]:[]).map(s=>`<option ${s===c.models[a.id]?'selected':''}>${s}</option>`).join('');
-    const simSel=SIMS.length
-      ?`<select style="flex:1;min-width:0;padding:7px 9px;font-size:11.5px" onchange="setSim('${a.id}',this.value)"><option value="">— pick a Sim —</option>${SIMS.map(s=>`<option value="${s.sim_id}" ${c.simMap&&String(c.simMap[a.id])===String(s.sim_id)?'selected':''}>${esc(s.name)}</option>`).join('')}</select>`
-      :`<input style="flex:1;min-width:0;padding:7px 9px;font-size:11.5px" placeholder="Load Sims first" value="${c.simMap&&c.simMap[a.id]!=null?c.simMap[a.id]:''}" onchange="setSim('${a.id}',this.value)"/>`;
-    return `<div class="agent"><div class="spine" style="background:${a.color}"></div>
-      <div class="ahead"><span class="aname">${a.simName}</span>
-        <span class="toggle ${enabled?'on':''}" onclick="toggleAgent('${a.id}',${!enabled})">${enabled?'● live':'○ off'}</span></div>
-      <select class="modelSel" onchange="setModel('${a.id}',this.value)">${opts}</select>
-      <div class="row" style="margin:-2px 0 8px;gap:7px"><span class="mut" style="font-size:10px">SIM</span>${simSel}</div>
-      <div class="screen">${thinking?`<span class="think">${(m.model||a.model).split('/').pop()} thinking <b></b><b></b><b></b></span>`:`<div>${lg?esc(lg.title):'—'}</div>${lg?`<div class="reason">${lg.source==='llm'?'“'+esc(lg.detail)+'”':esc(lg.detail)}</div>`:''}`}</div>
-      <div class="meta"><span>${a.model}</span>${lg?`<span>day ${lg.simDay} · ${lg.simClock}</span>`:''}</div>
+  const host=document.getElementById('sims');
+  if(!SIMS.length){host.innerHTML='';return;}
+  host.innerHTML='<div class="grid">'+SIMS.map(s=>{
+    const a=agentForSim(s.sim_id), model=a?(c.models[a.id]):'';
+    const enabled=a?((ENGINE.models||[]).find(m=>m.id===a.id)||{}).enabled!==false:false;
+    const thinking=a&&(ENGINE.thinking||[]).includes(a.id), lg=a?last[a.id]:null;
+    const brain = a
+      ? `<select onchange="setBrain('${a.id}',this.value)">${modelOptions(model)}</select><button class="x" title="unassign" onclick="unassign('${s.sim_id}')">✕</button>`
+      : `<select onchange="assignSim('${s.sim_id}',this.value)"><option value="">— pick a brain —</option>${modelOptions('')}</select>`;
+    const screen = !a ? `<span class="mut">pick a model above to bring ${esc(s.name)} to life</span>`
+      : thinking ? `<span class="think">${prettyModel(model)} is thinking <b></b><b></b><b></b></span>`
+      : lg ? `<div>${esc(lg.title)}</div>${lg.source==='llm'?`<div class="reason">“${esc(lg.detail)}”</div>`:`<div class="reason">${esc(lg.detail)}</div>`}`
+      : `<span class="mut">${STATE.running?'waiting for first decision…':'press Start'}</span>`;
+    return `<div class="sim ${a&&enabled?'live':''}" style="${a?`border-left-color:${a.color}`:''}">
+      <div class="schead"><span class="sname">${esc(s.name)}</span>
+        ${a?`<span class="livechip ${enabled?'on':''}" onclick="toggleAgent('${a.id}',${!enabled})">${enabled?'● live':'○ off'}</span>`:''}</div>
+      <div class="brow"><span class="blabel">BRAIN</span>${brain}</div>
+      <div class="screen">${screen}</div>
+      ${lg?`<div class="meta"><span>day ${lg.simDay} · ${lg.simClock}</span></div>`:''}
     </div>`;
-  }).join('');
+  }).join('')+'</div>';
 }
 
 async function saveKey(){const v=document.getElementById('key').value.trim();if(!v)return;await post('/api/host/config',{openRouterKey:v});document.getElementById('key').value='';refresh();}
-async function applyAll(){const m=document.getElementById('defModel').value;const models={};STATE.agents.forEach(a=>models[a.id]=m);await post('/api/host/config',{models});refresh();}
-async function setModel(id,m){await post('/api/host/config',{models:{[id]:m}});refresh();}
-async function setSim(id,v){await post('/api/host/config',{simMap:{[id]:(v||'').trim()}});refresh();}
+async function assignSim(simId,model){if(!model)return;await post('/api/host/assign',{sim_id:simId,model});refresh();}
+async function setBrain(agentId,model){await post('/api/host/config',{models:{[agentId]:model}});refresh();}
+async function unassign(simId){await post('/api/host/unassign',{sim_id:simId});refresh();}
 async function toggleAgent(id,on){const cur=new Set(STATE.config.enabledAgents);on?cur.add(id):cur.delete(id);await post('/api/host/config',{enabledAgents:[...cur]});refresh();}
-async function loadSims(){
-  const h=document.getElementById('simsHint');
-  try{
-    await post('/api/host/config',{bridgeUrl:document.getElementById('bridge').value.trim()||'http://127.0.0.1:8123'});
-    const r=await j('/api/host/sims');SIMS=r.sims||[];
-    h.textContent = SIMS.length ? ('Found '+SIMS.length+' Sims — pick who plays whom below, then Start.')
-      : !r.bridgeConfigured ? 'Set the bridge URL first.'
-      : !r.reachable ? 'Game not reachable — open The Sims 4 on a loaded lot. In-game press Ctrl+Shift+C and type  fivesim.bridge  to confirm.'
-      : r.noHousehold ? 'Reached the game, but no household is loaded — load a lot with your Sims, then reload.'
-      : 'Reached the game, but it found 0 controllable Sims — load a household, then reload.';
-    render();
-  }catch(e){h.textContent='Could not reach the game: '+e.message;}
-}
+async function applyAll(){const m=document.getElementById('defModel').value;const models={};(STATE.agents||[]).forEach(a=>models[a.id]=m);await post('/api/host/config',{models});refresh();}
+async function setCadence(ms){await post('/api/host/config',{decisionIntervalMs:parseInt(ms,10)});refresh();}
+async function reloadSims(){await post('/api/host/config',{bridgeUrl:document.getElementById('bridge').value.trim()||'http://127.0.0.1:8123'});refresh();}
+async function autoStart(){const r=await post('/api/host/autoassign');if(r.ok)await post('/api/host/start');refresh();}
 async function saveAndStart(){
   const k=document.getElementById('key').value.trim();
   if(k){await post('/api/host/config',{openRouterKey:k});document.getElementById('key').value='';}
   await post('/api/host/config',{bridgeUrl:document.getElementById('bridge').value.trim()||'http://127.0.0.1:8123'});
-  await post('/api/host/start');
-  await loadSims().catch(()=>{}); refresh();
+  await post('/api/host/start');refresh();
 }
 async function stopAll(){await post('/api/host/stop');refresh();}
 
-refresh().then(()=>loadSims().catch(()=>{}));
+refresh();
 setInterval(refresh,2500);
 </script>
 </body>
