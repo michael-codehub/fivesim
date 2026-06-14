@@ -29,11 +29,11 @@ Documents\Electronic Arts\The Sims 4\Mods\
 ☑ Enable Custom Content and Mods · ☑ Script Mods Allowed → **Apply → fully
 restart the game**.
 
-**3 — Run the app.** Download **[`5imulites-Host.exe`](../../releases/latest)**
-from the [latest release](../../releases/latest) and double-click it. A real
-desktop window opens (with the logo) — paste your
-[OpenRouter](https://openrouter.ai/settings/keys) key, pick a model, and that's
-your whole setup.
+**3 — Run the app.** Double-click
+[`download/5imulites-Host.exe`](download/5imulites-Host.exe) (it's right there in
+the folder you downloaded). A real desktop window opens (with the logo) — paste
+your [OpenRouter](https://openrouter.ai/settings/keys) key, pick a model, and
+that's your whole setup.
 *(This app is the AI "brain": The Sims 4 can't reach the internet from inside the
 game, so the host makes the AI calls — that's how every AI-Sims mod works.
 Everything stays on your PC.)*
@@ -53,8 +53,8 @@ That's it — the Sim now reads its own needs, asks its model what to do, and ac
    `Documents\Electronic Arts\The Sims 4\Mods\` (там уже всё, включая S4CL).
 3. В игре включи обе галки: **Settings → Game Options → Other** →
    **Custom Content and Mods** + **Script Mods Allowed** → **полный перезапуск игры**.
-4. Скачай **[`5imulites-Host.exe`](../../releases/latest)** из релиза, запусти →
-   откроется окно приложения (с лого) → вставь ключ с
+4. Запусти **[`download/5imulites-Host.exe`](download/5imulites-Host.exe)** (он уже
+   в скачанной папке) → откроется окно приложения (с лого) → вставь ключ с
    [openrouter.ai](https://openrouter.ai/settings/keys), выбери модель.
 5. Зайди в семью → в приложении **Load Sims from game** → назначь симов →
    **Save & Start the AI**. (Или в игре **кликни по симу** → **5imulites: Let AI Play**.)
