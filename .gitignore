@@ -5,3 +5,6 @@ dist/
 !download/**
 fivesim_token.txt
 .DS_Store
+desktop/node_modules/
+desktop/release/
+desktop/server/data/

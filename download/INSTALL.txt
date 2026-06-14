@@ -1,16 +1,36 @@
 5imulites — install (Windows)
 
-1) Copy EVERYTHING inside the "Mods" folder here into:
+────────────────────────────────────────────────────────
+STEP 1 · the mods
+────────────────────────────────────────────────────────
+Copy EVERYTHING inside the "Mods" folder here into:
       Documents\Electronic Arts\The Sims 4\Mods\
 
-2) In the game: Settings > Game Options > Other >
+In the game: Settings > Game Options > Other >
       tick "Enable Custom Content and Mods" + "Script Mods Allowed"
       then FULLY RESTART the game.
 
-3) Double-click  5imulites-host-win-x64.exe  (a control window opens in your
-   browser). Paste your OpenRouter key (get one at openrouter.ai).
+────────────────────────────────────────────────────────
+STEP 2 · the app
+────────────────────────────────────────────────────────
+Download "5imulites-Host.exe" from the Releases page:
+      https://github.com/akrosmoke/fivesim/releases/latest
 
-4) Load a household, click a Sim > "5imulites: Let AI Play".
-   (Or in the control window: "Load Sims from game" > pick > Start.)
+Double-click it. A window with the 5imulites logo opens. Then:
+   1) paste your OpenRouter key   (get one free at openrouter.ai)
+   2) pick a model
+   3) load a household in the game, click "Load Sims from game",
+      assign each AI to a Sim
+   4) press  "Save & Start the AI"
 
-Trouble? In-game press Ctrl+Shift+C and type:  fivesim.debug
+That's it — the 5 models now play their Sims. You can also click any
+Sim in-game > "5imulites: Let AI Play" to hand it to a free agent.
+
+(The old command-line host, 5imulites-host-win-x64.exe, still works if
+ you prefer it — it opens the same panel in your browser.)
+
+────────────────────────────────────────────────────────
+Trouble?
+────────────────────────────────────────────────────────
+In-game press Ctrl+Shift+C and type:  fivesim.debug
+The app must be open (it runs the local bridge the game talks to).

@@ -1,0 +1,59 @@
+{
+  "name": "fivesim-host",
+  "productName": "5imulites Host",
+  "version": "1.0.0",
+  "description": "Desktop host for 5imulites — runs the local bridge that lets 5 LLMs play The Sims 4.",
+  "author": "akrosmoke",
+  "license": "MIT",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --publish never"
+  },
+  "devDependencies": {
+    "electron": "^31.7.6",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "io.simulites.host",
+    "productName": "5imulites Host",
+    "asar": true,
+    "asarUnpack": [
+      "server/**"
+    ],
+    "files": [
+      "main.js",
+      "loading.html",
+      "server/**",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "5imulites-Host.exe"
+    },
+    "portable": {
+      "artifactName": "5imulites-Host.exe"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "5imulites-Host.dmg",
+      "category": "public.app-category.entertainment"
+    }
+  }
+}

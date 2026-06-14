@@ -29,17 +29,18 @@ Documents\Electronic Arts\The Sims 4\Mods\
 ☑ Enable Custom Content and Mods · ☑ Script Mods Allowed → **Apply → fully
 restart the game**.
 
-**3 — Run the control app.** Double-click
-[`download/5imulites-host-win-x64.exe`](download/5imulites-host-win-x64.exe). A
-control window opens in your browser — paste your
-[OpenRouter](https://openrouter.ai/settings/keys) key there once.
-*(This little app is the AI "brain": The Sims 4 can't reach the internet from
-inside the game, so the host makes the AI calls — that's how every AI-Sims mod
-works. Everything stays on your PC.)*
+**3 — Run the app.** Download **[`5imulites-Host.exe`](../../releases/latest)**
+from the [latest release](../../releases/latest) and double-click it. A real
+desktop window opens (with the logo) — paste your
+[OpenRouter](https://openrouter.ai/settings/keys) key, pick a model, and that's
+your whole setup.
+*(This app is the AI "brain": The Sims 4 can't reach the internet from inside the
+game, so the host makes the AI calls — that's how every AI-Sims mod works.
+Everything stays on your PC.)*
 
-**4 — Play.** Load a household, then **click a Sim** →
-**5imulites: Let AI Play** (also *Setup* / *Stop AI*). Or in the control window:
-**Load Sims from game** → pick who plays whom → **Start**.
+**4 — Play.** Load a household, then in the app press **Load Sims from game**,
+assign each AI to a Sim, and hit **Save & Start the AI**. Or in-game just **click
+a Sim** → **5imulites: Let AI Play** (also *Setup* / *Stop AI*).
 
 That's it — the Sim now reads its own needs, asks its model what to do, and acts.
 
@@ -52,10 +53,11 @@ That's it — the Sim now reads its own needs, asks its model what to do, and ac
    `Documents\Electronic Arts\The Sims 4\Mods\` (там уже всё, включая S4CL).
 3. В игре включи обе галки: **Settings → Game Options → Other** →
    **Custom Content and Mods** + **Script Mods Allowed** → **полный перезапуск игры**.
-4. Запусти `download/5imulites-host-win-x64.exe` → откроется окно управления →
-   вставь ключ с [openrouter.ai](https://openrouter.ai/settings/keys).
-5. Зайди в семью, **кликни по симу** → **5imulites: Let AI Play**. (Или в окне:
-   **Load Sims from game** → выбери → **Start**.)
+4. Скачай **[`5imulites-Host.exe`](../../releases/latest)** из релиза, запусти →
+   откроется окно приложения (с лого) → вставь ключ с
+   [openrouter.ai](https://openrouter.ai/settings/keys), выбери модель.
+5. Зайди в семью → в приложении **Load Sims from game** → назначь симов →
+   **Save & Start the AI**. (Или в игре **кликни по симу** → **5imulites: Let AI Play**.)
 
 Если что-то не работает: **Ctrl+Shift+C** → `fivesim.debug` — команда построчно
 покажет, какой слой сломан (S4CL / пакет кнопки / хост).
@@ -83,7 +85,8 @@ fivesim.start / fivesim.stop / fivesim.status
 console; it names the broken layer. Most common: game wasn't fully restarted, or
 a file isn't directly in `Mods\` (max one subfolder deep).
 
-**"host unreachable"** → start `5imulites-host-win-x64.exe` (or `npm run dev`).
+**"host unreachable"** → the app (`5imulites-Host.exe`) must be open; it runs the
+local bridge the game talks to.
 
 **Windows SmartScreen warns about the exe** → it's an unsigned open-source
 build; "More info → Run anyway", or build it yourself from this repo.
@@ -117,6 +120,10 @@ scripted.
 
 Build from source: `python build.py` → everything lands in `dist/`.
 Host from source: `npm run dev` in the main 5imulites repo (`localhost:4000/host`).
+Desktop app: `desktop/` is an Electron shell that boots the bundled host and
+shows it in a native window — `cd desktop && npm install && npm run dist` builds
+`5imulites-Host.exe` (CI does this on every push via
+`.github/workflows/build-desktop.yml`).
 
 The mod exposes a local bridge on `http://127.0.0.1:8123`:
 

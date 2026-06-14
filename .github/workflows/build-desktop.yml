@@ -1,0 +1,38 @@
+name: build desktop app (5imulites Host.exe)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/build-desktop.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install
+        working-directory: desktop
+        run: npm install
+      - name: Build portable .exe
+        working-directory: desktop
+        run: npm run dist
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 5imulites-Host-win
+          path: desktop/release/5imulites-Host.exe
+          if-no-files-found: error
+      - name: Attach to release v1.0.0
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        shell: bash
+        run: gh release upload v1.0.0 "desktop/release/5imulites-Host.exe" --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
