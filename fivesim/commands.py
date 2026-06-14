@@ -25,6 +25,7 @@ def fivesim_help(_connection=None):
     o('  fivesim.map <agent> <sim_id>       map an agent to a Sim (agents: %s)' % ', '.join(AGENTS))
     o('  fivesim.model <agent> <model>      set the model for an agent')
     o('  fivesim.connect                    point the host at this game bridge')
+    o('  fivesim.bridge                     force-start + health-check the game bridge')
     o('  fivesim.start / fivesim.stop       start / stop the AI playing')
     o('  fivesim.status                     show host + engine status')
 
@@ -38,9 +39,19 @@ def fivesim_key(key=None, _connection=None):
     o('API key saved on the host.' if ok else 'host unreachable: %s (is `npm run dev` running?)' % res.get('reason', res))
 
 
+def _ensure_bridge():
+    """Force-start the in-game bridge + drain alarm (idempotent, main-thread safe)."""
+    try:
+        from . import main_loop
+        return main_loop.ensure_started()
+    except Exception:
+        return False
+
+
 @sims4.commands.Command('fivesim.sims', command_type=sims4.commands.CommandType.Live)
 def fivesim_sims(_connection=None):
     o = _out(_connection)
+    _ensure_bridge()
     hh = services.active_household()
     if hh is None:
         return o('no active household — load a lot first')
@@ -48,6 +59,29 @@ def fivesim_sims(_connection=None):
     for si in hh.sim_info_gen():
         o('  %d  %s %s' % (si.sim_id, si.first_name, si.last_name))
     o('map them, e.g.:  fivesim.map gpt <sim_id>')
+
+
+@sims4.commands.Command('fivesim.bridge', command_type=sims4.commands.CommandType.Live)
+def fivesim_bridge(_connection=None):
+    """Force-start the local game bridge and print its health (the thing the host app reads)."""
+    o = _out(_connection)
+    ok = _ensure_bridge()
+    try:
+        from . import main_loop
+        d = main_loop.diagnostics()
+        o('— 5imulites bridge (http://%s:%d) —' % (HOST, PORT))
+        o('  server listening: %s' % d['server_up'])
+        o('  drain alarm:      %s' % d['alarm_registered'])
+        o('  sims in snapshot: %s' % d['snapshot_sims'])
+        o('  active household: %s' % d['active_household'])
+        if d.get('last_error'):
+            o('  last error: %s' % d['last_error'].splitlines()[-1])
+        if d['server_up'] and d['alarm_registered'] and d['snapshot_sims'] == 0 and not d['active_household']:
+            o('  -> bridge is UP but no household loaded. Load a lot, then in the app press Load Sims.')
+        elif d['server_up'] and d['alarm_registered']:
+            o('  -> bridge healthy. In the app: Load Sims from game.')
+    except Exception as e:
+        o('bridge diagnostics failed: %r (started=%s)' % (e, ok))
 
 
 @sims4.commands.Command('fivesim.map', command_type=sims4.commands.CommandType.Live)
@@ -93,16 +127,30 @@ def fivesim_stop(_connection=None):
     o('AI stopped.' if ok else 'host unreachable: %s' % res.get('reason', res))
 
 
+def _print_local_bridge(o):
+    try:
+        from . import main_loop
+        d = main_loop.diagnostics()
+        o('local bridge: listening=%s alarm=%s sims=%s household=%s'
+          % (d['server_up'], d['alarm_registered'], d['snapshot_sims'], d['active_household']))
+        if d.get('last_error'):
+            o('local bridge last error: %s' % d['last_error'].splitlines()[-1])
+    except Exception as e:
+        o('local bridge: diagnostics failed %r' % e)
+
+
 @sims4.commands.Command('fivesim.status', command_type=sims4.commands.CommandType.Live)
 def fivesim_status(_connection=None):
     o = _out(_connection)
+    _ensure_bridge()
+    _print_local_bridge(o)
     ok, res = host_client.status()
     if not ok:
-        return o('host unreachable: %s (run `npm run dev`)' % res.get('reason', res))
+        return o('host app: unreachable — open 5imulites-Host.exe (%s)' % res.get('reason', res))
     cfg = res.get('config', {})
     eng = res.get('engine', {})
-    o('host: connected | running: %s | LLM: %s' % (res.get('running'), cfg.get('llmEnabled')))
-    o('bridge connected: %s | decisions: %s' % ((eng.get('bridge') or {}).get('connected'), (eng.get('llm') or {}).get('calls')))
+    o('host app: connected | running: %s | LLM: %s' % (res.get('running'), cfg.get('llmEnabled')))
+    o('host sees game: %s | decisions: %s' % ((eng.get('bridge') or {}).get('connected'), (eng.get('llm') or {}).get('calls')))
     for m in eng.get('models', []):
         o('  %s -> %s' % (m.get('id'), m.get('model')))
 
@@ -175,6 +223,9 @@ def fivesim_debug(_connection=None):
     """One-shot diagnostic: tells you exactly which layer is broken."""
     o = _out(_connection)
     o('— 5imulites diagnostics —')
+    # 0. local game bridge (the thing the host app reads to list your Sims)
+    _ensure_bridge()
+    _print_local_bridge(o)
     # 1. S4CL present?
     try:
         import sims4communitylib  # noqa: F401

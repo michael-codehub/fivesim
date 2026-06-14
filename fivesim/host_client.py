@@ -67,7 +67,9 @@ def set_model(agent_id, model):
     return set_config({'models': {agent_id: model}})
 
 def set_sim(agent_id, sim_id):
-    return set_config({'simMap': {agent_id: int(sim_id)}})
+    # send the 64-bit sim_id as a STRING — a JSON number would be rounded by the
+    # host's JS JSON.parse for ids above 2^53.
+    return set_config({'simMap': {agent_id: str(int(sim_id))}})
 
 def connect_bridge(bridge_url):
     return set_config({'bridgeUrl': bridge_url})

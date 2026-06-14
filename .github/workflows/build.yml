@@ -8,6 +8,9 @@ on:
       - 'tools/build_pyc.py'
       - '.github/workflows/build.yml'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -24,3 +27,8 @@ jobs:
           name: fivesim-ts4script
           path: dist/fivesim.ts4script
           if-no-files-found: error
+      - name: Attach to release v1.0.0
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        run: gh release upload v1.0.0 dist/fivesim.ts4script --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -33,7 +33,9 @@
   .snum{width:20px;height:20px;border-radius:50%;border:1px solid var(--hair);display:grid;place-items:center;color:var(--acc);font-size:11px}
   .card{background:var(--panel);border:1px solid var(--hair);border-radius:14px;padding:16px}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  input,select{background:rgba(233,237,244,.05);border:1px solid var(--hair);color:var(--ink);border-radius:9px;padding:11px 13px;font-family:var(--mono);font-size:13px;outline:none}
+  input,select{background:#11151c;border:1px solid var(--hair);color:var(--ink);border-radius:9px;padding:11px 13px;font-family:var(--mono);font-size:13px;outline:none}
+  select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--mut) 50%),linear-gradient(135deg,var(--mut) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
+  select option{background:#11151c;color:var(--ink)}
   input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(47,168,255,.15)}
   input{flex:1;min-width:220px}
   button{font-family:var(--mono);font-size:12.5px;letter-spacing:.02em;border-radius:9px;padding:11px 16px;border:1px solid var(--hair);background:rgba(233,237,244,.04);color:var(--ink);cursor:pointer;transition:.15s}
@@ -185,14 +187,18 @@ function render(){
 async function saveKey(){const v=document.getElementById('key').value.trim();if(!v)return;await post('/api/host/config',{openRouterKey:v});document.getElementById('key').value='';refresh();}
 async function applyAll(){const m=document.getElementById('defModel').value;const models={};STATE.agents.forEach(a=>models[a.id]=m);await post('/api/host/config',{models});refresh();}
 async function setModel(id,m){await post('/api/host/config',{models:{[id]:m}});refresh();}
-async function setSim(id,v){const n=parseInt(v,10);if(isNaN(n)){await post('/api/host/config',{simMap:{[id]:0}});return;}await post('/api/host/config',{simMap:{[id]:n}});refresh();}
+async function setSim(id,v){await post('/api/host/config',{simMap:{[id]:(v||'').trim()}});refresh();}
 async function toggleAgent(id,on){const cur=new Set(STATE.config.enabledAgents);on?cur.add(id):cur.delete(id);await post('/api/host/config',{enabledAgents:[...cur]});refresh();}
 async function loadSims(){
   const h=document.getElementById('simsHint');
   try{
     await post('/api/host/config',{bridgeUrl:document.getElementById('bridge').value.trim()||'http://127.0.0.1:8123'});
     const r=await j('/api/host/sims');SIMS=r.sims||[];
-    h.textContent=SIMS.length?('Found '+SIMS.length+' Sims — pick who plays whom below, then Start.'):(r.bridgeConfigured?'Game not reachable — is The Sims 4 running with the mod, on a loaded lot?':'Set the bridge URL first.');
+    h.textContent = SIMS.length ? ('Found '+SIMS.length+' Sims — pick who plays whom below, then Start.')
+      : !r.bridgeConfigured ? 'Set the bridge URL first.'
+      : !r.reachable ? 'Game not reachable — open The Sims 4 on a loaded lot. In-game press Ctrl+Shift+C and type  fivesim.bridge  to confirm.'
+      : r.noHousehold ? 'Reached the game, but no household is loaded — load a lot with your Sims, then reload.'
+      : 'Reached the game, but it found 0 controllable Sims — load a household, then reload.';
     render();
   }catch(e){h.textContent='Could not reach the game: '+e.message;}
 }

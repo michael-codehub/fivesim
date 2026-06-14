@@ -1175,6 +1175,7 @@ let GameDriverService = class GameDriverService {
         this.logger = new common_1.Logger('GameDriver');
         this.healthy = false;
         this.seq = 0;
+        this.noHousehold = false;
     }
     get url() {
         return this.host.bridgeUrl;
@@ -1215,7 +1216,7 @@ let GameDriverService = class GameDriverService {
         if (!this.configured)
             return { ok: true };
         const simId = this.host.simIdFor(agent.id);
-        if (simId == null)
+        if (!simId)
             return { ok: false, reason: 'no sim_id mapped for ' + agent.id };
         const act = (0, actions_1.actuationFor)(action.id);
         let body = null;
@@ -1243,11 +1244,14 @@ let GameDriverService = class GameDriverService {
             return null;
         try {
             const res = await this.req('GET', '/state');
-            if (!res.ok)
+            if (!res.ok) {
+                this.healthy = false;
                 return null;
+            }
             const json = (await res.json());
             this.healthy = true;
-            return Object.values(json?.agents ?? {}).map((a) => ({ sim_id: String(a.sim_id), name: a.name }));
+            this.noHousehold = !!json?.no_active_household;
+            return Object.entries(json?.agents ?? {}).map(([sim_id, a]) => ({ sim_id, name: a.name }));
         }
         catch {
             this.healthy = false;
@@ -1258,7 +1262,7 @@ let GameDriverService = class GameDriverService {
         if (!this.connected)
             return null;
         const simId = this.host.simIdFor(agentId);
-        if (simId == null)
+        if (!simId)
             return null;
         try {
             const res = await this.req('GET', `/state/${simId}`);
@@ -1631,7 +1635,8 @@ let HostConfigService = class HostConfigService {
         return this.cfg.bridgeToken ?? process.env.SIMS4_BRIDGE_TOKEN ?? '';
     }
     simIdFor(agentId) {
-        return this.cfg.simMap?.[agentId] ?? null;
+        const v = this.cfg.simMap?.[agentId];
+        return v && v !== '0' ? String(v) : null;
     }
     get decisionIntervalMs() {
         return this.cfg.decisionIntervalMs ?? Number(process.env.DECISION_INTERVAL_MS || 32000);
@@ -1643,8 +1648,15 @@ let HostConfigService = class HostConfigService {
             this.cfg.models = { ...this.cfg.models, ...partial.models };
         if (partial.enabledAgents)
             this.cfg.enabledAgents = partial.enabledAgents;
-        if (partial.simMap)
-            this.cfg.simMap = { ...this.cfg.simMap, ...partial.simMap };
+        if (partial.simMap) {
+            this.cfg.simMap = { ...this.cfg.simMap };
+            for (const [k, val] of Object.entries(partial.simMap)) {
+                if (val == null || val === '' || val === '0')
+                    delete this.cfg.simMap[k];
+                else
+                    this.cfg.simMap[k] = String(val);
+            }
+        }
         if (partial.bridgeUrl !== undefined)
             this.cfg.bridgeUrl = partial.bridgeUrl.trim() || undefined;
         if (partial.bridgeToken !== undefined)
@@ -1900,7 +1912,13 @@ let HostController = class HostController {
     }
     async sims() {
         const sims = await this.driver.listSims();
-        return { bridgeConfigured: this.driver.configured, connected: this.driver.connected, sims: sims ?? [] };
+        return {
+            bridgeConfigured: this.driver.configured,
+            connected: this.driver.connected,
+            reachable: sims !== null,
+            noHousehold: this.driver.noHousehold,
+            sims: sims ?? [],
+        };
     }
     agentIds() {
         return this.store.agents.map((a) => a.id);
@@ -1915,6 +1933,8 @@ let HostController = class HostController {
     }
     async setConfig(dto) {
         this.host.set(dto);
+        if (dto.bridgeUrl !== undefined || dto.bridgeToken !== undefined)
+            await this.driver.recheck();
         await this.orchestrator.applyConfig();
         return { ok: true, config: this.host.publicState(this.agentIds()) };
     }

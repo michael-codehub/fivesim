@@ -10,6 +10,10 @@ def _stat_cls(guid):
     return mgr.get(guid)
 
 
+def has_active_household():
+    return services.active_household() is not None
+
+
 def list_sim_ids():
     """All controllable household SimInfos -> stable ids for model mapping."""
     hh = services.active_household()
@@ -20,7 +24,7 @@ def list_sim_ids():
 
 def build_sim_state(sim_info):
     state = {
-        'sim_id': sim_info.sim_id,
+        'sim_id': str(sim_info.sim_id),   # 64-bit id as a string (JS rounds numbers > 2^53)
         'name': '{} {}'.format(sim_info.first_name, sim_info.last_name),
         'instantiated': sim_info.get_sim_instance() is not None,
     }

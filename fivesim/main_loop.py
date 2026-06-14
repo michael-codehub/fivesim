@@ -20,18 +20,36 @@ except Exception:
 _OWNER = object()        # keep a strong ref or the alarm gets GC-cancelled
 _alarm = None
 _started = False
+_last_error = None       # surfaced by fivesim.status / fivesim.debug
+
+
+def _write_err(text):
+    global _last_error
+    _last_error = text
+    # best-effort breadcrumb next to the mod so failures aren't invisible
+    try:
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(base, 'fivesim_ERROR.txt'), 'w') as f:
+            f.write(text)
+    except Exception:
+        pass
 
 
 def _refresh_snapshot():
     agents = {}
+    has_hh = state_reader.has_active_household()
     for sid in state_reader.list_sim_ids():
         st = state_reader.build_state_for(sid)
         if st is not None:
             agents[str(sid)] = st
-    bridge_server.publish_snapshot({'agents': agents, 'ts': time.time()})
+    bridge_server.publish_snapshot({
+        'agents': agents,
+        'ts': time.time(),
+        'no_active_household': not has_hh,
+    })
 
 
-def _drain(_handle):
+def _drain(_handle=None):
     # RUNS ON MAIN THREAD -> safe to touch game state. Keep it short.
     drained = 0
     while drained < 32:
@@ -78,20 +96,49 @@ def _load_local_token():
 
 
 def start_all():
+    # Idempotent: start_server() and start_drain() each early-return if already
+    # running, so a partial success (server up, alarm raised) is safely resumed
+    # on the next call. _started flips True ONLY after BOTH succeed, so a transient
+    # failure (e.g. time service not ready, port briefly busy) is retried instead
+    # of being latched off for the whole session.
     global _started
     if _started:
         return
-    _started = True
     bridge_server.set_token(_load_local_token())
     bridge_server.start_server()
     start_drain()
+    _started = True
+
+
+def ensure_started():
+    """Safe to call from any main-thread context (zone load, console command).
+    Returns True once the bridge + drain alarm are live."""
+    if _started:
+        return True
+    try:
+        start_all()
+        return True
+    except Exception as e:
+        import traceback
+        _write_err('start_all failed (will retry):\n\n' + traceback.format_exc())
+        return False
+
+
+def diagnostics():
+    """Local bridge health for fivesim.status / fivesim.debug / fivesim.bridge."""
+    snap = bridge_server.state_snapshot
+    return {
+        'started': _started,
+        'server_up': bridge_server._server is not None,
+        'alarm_registered': _alarm is not None,
+        'snapshot_sims': len(snap.get('agents', {})),
+        'active_household': not snap.get('no_active_household', True),
+        'last_error': _last_error,
+    }
 
 
 @inject(zone.Zone, 'do_zone_spin_up')
 def _fivesim_on_zone_load(original, self, *args, **kwargs):
     result = original(self, *args, **kwargs)     # always chain + return original
-    try:
-        start_all()
-    except Exception:
-        pass
+    ensure_started()
     return result
