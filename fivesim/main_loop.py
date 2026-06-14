@@ -43,17 +43,33 @@ def _write_err(text):
         pass
 
 
+_available = []
+_available_at = 0.0
+
+
 def _refresh_snapshot():
+    global _available, _available_at
     agents = {}
     has_hh = state_reader.has_active_household()
     for sid in state_reader.list_sim_ids():
         st = state_reader.build_state_for(sid)
         if st is not None:
             agents[str(sid)] = st
+    now = time.time()
+    # what the lot offers — scan is expensive, so refresh at most every ~20s
+    if has_hh and (not _available or now - _available_at > 20.0):
+        try:
+            _available = action_executor.available_on_lot()
+        except Exception:
+            pass
+        _available_at = now
+    for st in agents.values():
+        st['available'] = _available
     bridge_server.publish_snapshot({
         'agents': agents,
-        'ts': time.time(),
+        'ts': now,
         'no_active_household': not has_hh,
+        'available': _available,
     })
 
 

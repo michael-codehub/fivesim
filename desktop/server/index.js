@@ -384,12 +384,13 @@ Who you are:
 
 This is a long-term game scored on judgment — how well you balance six needs (hunger, energy, social, hygiene, fun, bladder) against money, career, relationships and your aspiration, over many days. No human steers you.
 
-HOW TO DECIDE WELL (this matters — don't be a robot that only sleeps):
+HOW TO DECIDE WELL (this matters — don't be a robot that only sleeps or reads):
 1. Look at your needs. Act on the MOST URGENT one first — the lowest number, especially anything under ~30. Hunger low → cook_meal. Bladder low → use_bathroom. Hygiene low → shower. Social low → talk to someone. ONLY choose sleep when ENERGY is your single lowest need; never sleep to fix hunger, a full bladder, low hygiene, or boredom.
-2. If no need is urgent (all comfortably above ~40), DON'T do chores — pursue your aspiration, career, money, a skill, or fun. This is your chance to actually live.
-3. Be social. When other people are around and your social need isn't full, talk to them BY NAME instead of doing something alone.
-4. Don't repeat what you're already doing or just did — vary your life. If you just slept, don't sleep again.
-5. You can interrupt your current action: if something is more urgent now, just choose it and you'll switch to it.
+2. If no need is urgent (all comfortably above ~40), DON'T do chores — pursue your aspiration, career, money, a skill, fun, or people. This is your chance to actually live.
+3. Be social. When other Sims are around and your social need isn't full, talk to them BY NAME instead of doing something alone.
+4. VARIETY IS THE POINT. Never pick the same action two turns in a row. Look at what you just did (shown below) and deliberately do something different — a real person doesn't read the same book all day. Rotate across needs, work, skills, fun, and people.
+5. You can interrupt your current action: if something is more useful now, just choose it and you'll switch to it.
+6. Only choose actions that fit what's actually on this lot (the observation tells you what's here). Reason about WHY in your own voice — what you want right now and how this serves your aspiration.
 
 Stay in character for ${agent.simName} (your traits + aspiration shape HOW you pursue these). Choose exactly ONE action from the menu.
 
@@ -443,6 +444,15 @@ function buildObservation(agent, opts) {
     const doingNow = opts.lastAction
         ? `\nRight now you are: ${opts.lastAction}. You can interrupt it by choosing something else.`
         : '';
+    const onLot = opts.live?.available?.length
+        ? `\nOn this lot you can actually: ${opts.live.available.join(', ')} — only pick actions that fit what's here.`
+        : '';
+    const recent = (opts.recentActions || []).filter(Boolean);
+    const lastId = recent[0];
+    const repeated = lastId && recent.slice(0, 3).every((a) => a === lastId);
+    const antiRepeat = lastId
+        ? `\n🔁 Your last action${recent.length > 1 ? 's' : ''}: ${recent.slice(0, 3).join(' → ')}.${repeated ? ' You keep repeating yourself — you MUST pick a DIFFERENT action now.' : ' Pick something different from your last action.'}`
+        : '';
     const menu = opts.menu
         .map((a) => {
         const tgt = a.requiresTarget ? ` (needs a ${a.requiresTarget})` : '';
@@ -458,7 +468,7 @@ Money: §${Math.round(money).toLocaleString('en-US')}
 Career: ${careerTitle} (level ${careerLevel}/${agent.career.maxLevel})
 Skills: ${skills}
 Relationships: ${rels}${here}
-Aspiration: ${agent.aspiration}${opts.goal ? `\nCurrent focus: ${opts.goal}` : ''}${doingNow}
+Aspiration: ${agent.aspiration}${opts.goal ? `\nCurrent focus: ${opts.goal}` : ''}${onLot}${doingNow}${antiRepeat}
 
 Recently you:
 ${opts.recentEvents.length ? opts.recentEvents.map((e) => `• ${e}`).join('\n') : '• (just getting started)'}
@@ -1182,14 +1192,28 @@ exports.ACTIONS = [
 exports.ACTION_BY_ID = new Map(exports.ACTIONS.map((a) => [a.id, a]));
 exports.ACTION_MOD = {
     go_to_work: { type: 'go_to_work' },
+    work_overtime: { type: 'go_to_work' },
     sleep: { type: 'interaction', interaction: 'sleep_in_bed' },
     cook_meal: { type: 'interaction', interaction: 'eat_grab_quick' },
     shower: { type: 'interaction', interaction: 'shower' },
     use_bathroom: { type: 'interaction', interaction: 'use_toilet' },
+    practice_skill: { type: 'interaction', interaction: 'practice_skill' },
+    study_for_career: { type: 'interaction', interaction: 'study' },
+    play_hobby: { type: 'interaction', interaction: 'play_fun' },
+    exercise: { type: 'interaction', interaction: 'exercise' },
+    meditate: { type: 'interaction', interaction: 'meditate' },
     invest: { type: 'modify_funds', useDelta: true },
     side_hustle: { type: 'modify_funds', useDelta: true },
     sell_creations: { type: 'modify_funds', useDelta: true },
     buy_luxury: { type: 'modify_funds', useDelta: true },
+    meet_friend: { type: 'interaction', interaction: 'socialize', needsTarget: true },
+    deepen_friendship: { type: 'interaction', interaction: 'socialize', needsTarget: true },
+    make_new_friend: { type: 'interaction', interaction: 'socialize', needsTarget: true },
+    call_friend: { type: 'interaction', interaction: 'socialize', needsTarget: true },
+    host_gathering: { type: 'interaction', interaction: 'socialize', needsTarget: true },
+    repair_rivalry: { type: 'interaction', interaction: 'socialize', needsTarget: true },
+    date_partner: { type: 'interaction', interaction: 'socialize', needsTarget: true },
+    network_leadership: { type: 'interaction', interaction: 'socialize', needsTarget: true },
 };
 const actuationFor = (id) => exports.ACTION_MOD[id] ?? { type: 'none' };
 exports.actuationFor = actuationFor;
@@ -1270,8 +1294,16 @@ let GameDriverService = class GameDriverService {
         let body = null;
         if (act.type === 'go_to_work')
             body = { type: 'go_to_work', sim_id: simId };
-        else if (act.type === 'interaction')
-            body = { type: 'interaction', sim_id: simId, interaction: act.interaction };
+        else if (act.type === 'interaction') {
+            const b = { type: 'interaction', sim_id: simId, interaction: act.interaction };
+            if (act.needsTarget && target) {
+                const roster = await this.listSimsCached();
+                const m = roster.find((s) => s.name.toLowerCase() === String(target).toLowerCase());
+                if (m)
+                    b.target_sim_id = m.sim_id;
+            }
+            body = b;
+        }
         else if (act.type === 'modify_funds')
             body = { type: 'modify_funds', sim_id: simId, amount: Math.round(simoleonsDelta) };
         else
@@ -2181,6 +2213,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var OrchestratorService_1;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.OrchestratorService = void 0;
 const common_1 = __nccwpck_require__(85897);
@@ -2196,7 +2229,7 @@ const host_config_service_1 = __nccwpck_require__(85010);
 const actions_1 = __nccwpck_require__(32543);
 const util_1 = __nccwpck_require__(29496);
 const metrics_util_1 = __nccwpck_require__(64801);
-let OrchestratorService = class OrchestratorService {
+let OrchestratorService = OrchestratorService_1 = class OrchestratorService {
     get interval() {
         return this.host.decisionIntervalMs;
     }
@@ -2213,6 +2246,7 @@ let OrchestratorService = class OrchestratorService {
         this.logger = new common_1.Logger('Orchestrator');
         this.timers = [];
         this.nextDecisionAt = new Map();
+        this.recentActions = new Map();
         this.thinking = new Set();
         this.inFlight = 0;
         this.running = true;
@@ -2269,6 +2303,7 @@ let OrchestratorService = class OrchestratorService {
                         funds: typeof st.funds === 'number' ? st.funds : agent.simoleons,
                         career: careers[0] ? { title: careers[0].title || agent.career.title, level: careers[0].user_level ?? agent.career.level } : undefined,
                         others,
+                        available: Array.isArray(st.available) ? st.available : undefined,
                     };
                     if (others.length) {
                         const known = new Set(targets.map((t) => t.name.toLowerCase()));
@@ -2287,13 +2322,17 @@ let OrchestratorService = class OrchestratorService {
                 targets,
                 live,
                 lastAction: agent.currentAction,
+                recentActions: this.recentActions.get(agent.id) || [],
                 viewerPrompt: viewerPrompt ? { text: viewerPrompt.text, walletShort: viewerPrompt.walletShort } : undefined,
             };
             const decision = await this.brain.decide(agent, ctx);
             const outcome = this.world.apply(agent, decision.action, decision.target);
             const dispatch = await this.driver.dispatch(agent, decision.action, decision.target, outcome.simoleonsDelta);
-            if (this.driver.connected && this.host.fastForward)
-                void this.driver.setSpeed(3);
+            const hist = [decision.action.id, ...(this.recentActions.get(agent.id) || [])].slice(0, 4);
+            this.recentActions.set(agent.id, hist);
+            if (this.driver.connected && this.host.fastForward) {
+                void this.driver.setSpeed(OrchestratorService_1.LONG_ACTIONS.has(decision.action.id) ? 3 : 1);
+            }
             const detail = decision.reasoning || `${agent.simName} chose to ${decision.action.label.toLowerCase()}.`;
             const log = {
                 id: this.store.newId('log'),
@@ -2420,7 +2459,8 @@ let OrchestratorService = class OrchestratorService {
     }
 };
 exports.OrchestratorService = OrchestratorService;
-exports.OrchestratorService = OrchestratorService = __decorate([
+OrchestratorService.LONG_ACTIONS = new Set(['sleep', 'go_to_work', 'work_overtime', 'study_for_career', 'meditate']);
+exports.OrchestratorService = OrchestratorService = OrchestratorService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [sim_store_service_1.SimStore,
         events_gateway_1.EventsGateway,

@@ -6,7 +6,7 @@ import sims4.commands
 import sims4.resources
 from interactions.context import InteractionContext
 from interactions.priority import Priority
-from .ids import INTERACTION_GUIDS, INTERACTION_AFFORDANCE_NAMES
+from .ids import INTERACTION_GUIDS, INTERACTION_AFFORDANCE_NAMES, LOT_CATALOG
 
 
 def _sim_instance(sim_id):
@@ -123,16 +123,20 @@ def _obj_super_affordances(obj):
             return []
 
 
+def _all_objects():
+    om = services.object_manager()
+    try:
+        return list(om.get_all())
+    except Exception:
+        return list(om.values()) if hasattr(om, 'values') else []
+
+
 def find_object_affordance(name_sets):
     """Scan every object on the lot for a super-affordance whose (lowercased)
     name contains ALL fragments of any set in name_sets. Returns (obj, affordance,
     affordance_name) — pushing the object's OWN affordance with the object as the
     target is far more robust than a hardcoded GUID pushed onto the Sim."""
-    om = services.object_manager()
-    try:
-        objects = list(om.get_all())
-    except Exception:
-        objects = list(om.values()) if hasattr(om, 'values') else []
+    objects = _all_objects()
     for frags in name_sets:
         for obj in objects:
             for aff in _obj_super_affordances(obj):
@@ -141,6 +145,33 @@ def find_object_affordance(name_sets):
                 if all(f in low for f in frags):
                     return obj, aff, nm
     return None, None, None
+
+
+def _affordance_on(holder, name_sets):
+    """Find a super-affordance the given holder (object OR Sim) provides."""
+    for frags in name_sets:
+        for aff in _obj_super_affordances(holder):
+            low = (getattr(aff, '__name__', '') or '').lower()
+            if all(f in low for f in frags):
+                return aff, getattr(aff, '__name__', '')
+    return None, None
+
+
+def available_on_lot():
+    """Human labels for what this lot actually offers — fed to the model so it
+    only picks things that exist here. Reuses the same scan; call sparingly."""
+    names = []
+    for obj in _all_objects():
+        for aff in _obj_super_affordances(obj):
+            nm = getattr(aff, '__name__', '')
+            if nm:
+                names.append(nm.lower())
+    present = []
+    for label, name_sets in LOT_CATALOG:
+        # present if ANY single affordance name contains ALL fragments of a set
+        if any(any(all(f in n for f in frags) for n in names) for frags in name_sets):
+            present.append(label)
+    return present
 
 
 def _resolve_affordance_guid(name):
@@ -168,13 +199,17 @@ def _push_interaction(action):
     affordance = None
     target = explicit_target
     aff_name = None
+    name_sets = INTERACTION_AFFORDANCE_NAMES.get(name)
 
-    if explicit_target is None:
+    if explicit_target is not None:
+        # social / targeted: find an affordance the TARGET Sim provides (e.g. a
+        # friendly chat) and push it onto them.
+        if name_sets:
+            affordance, aff_name = _affordance_on(explicit_target, name_sets)
+    elif name_sets:
         # primary path: find an object on the lot that PROVIDES a matching
         # affordance, and push it on that object (correct target + real id).
-        name_sets = INTERACTION_AFFORDANCE_NAMES.get(name)
-        if name_sets:
-            target, affordance, aff_name = find_object_affordance(name_sets)
+        target, affordance, aff_name = find_object_affordance(name_sets)
 
     if affordance is None:
         # fallback: hardcoded GUID pushed onto the resolved/own target

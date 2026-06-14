@@ -26,10 +26,35 @@ INTERACTION_GUIDS = {
 # object/affordance that matches ALL fragments of a set wins.
 INTERACTION_AFFORDANCE_NAMES = {
     'sleep_in_bed':   [['sleep'], ['nap']],
-    'eat_grab_quick': [['grab', 'plate'], ['grab', 'snack'], ['grab'], ['eat']],
+    'eat_grab_quick': [['grab', 'plate'], ['grab', 'snack'], ['grab'], ['eat'], ['cook'], ['serv']],
     'shower':         [['shower'], ['takebath'], ['bathe'], ['bath']],
     'use_toilet':     [['toilet'], ['pee'], ['bladder'], ['use', 'standing']],
+    # skills / leisure — match whatever skill/fun object the lot actually has
+    'practice_skill': [['practice'], ['piano'], ['guitar'], ['violin'], ['paint'], ['easel'], ['woodwork'], ['program'], ['write']],
+    'study':          [['research'], ['study'], ['read'], ['homework']],
+    'play_fun':       [['watch'], ['channel'], ['video_game'], ['play_'], ['game'], ['dance'], ['read'], ['browse']],
+    'exercise':       [['workout'], ['exercise'], ['treadmill'], ['yoga'], ['lift'], ['jog'], ['stretch']],
+    'meditate':       [['meditate'], ['yoga']],
+    # social — searched on the TARGET Sim's own affordances
+    'socialize':      [['friendly'], ['chat'], ['introduce'], ['get_to_know'], ['talk'], ['compliment'], ['funny'], ['hello'], ['social']],
 }
+
+# Catalogue used only to tell the model what this lot actually offers (label ->
+# affordance-name fragment alternatives). Computed lazily + cached, never per-tick.
+LOT_CATALOG = [
+    ('cook a meal',      [['cook'], ['grab'], ['serv'], ['make_'], ['prepare']]),
+    ('sleep',            [['sleep'], ['nap']]),
+    ('shower or bathe',  [['shower'], ['bathe'], ['bath']]),
+    ('use the toilet',   [['toilet'], ['pee']]),
+    ('watch TV',         [['watch'], ['channel']]),
+    ('use the computer', [['computer'], ['browse'], ['program'], ['social_media']]),
+    ('read a book',      [['read']]),
+    ('play music',       [['piano'], ['guitar'], ['violin'], ['sing'], ['instrument']]),
+    ('paint or create',  [['paint'], ['sketch'], ['easel'], ['woodwork']]),
+    ('work out',         [['workout'], ['exercise'], ['treadmill'], ['yoga'], ['lift']]),
+    ('tend a garden',    [['garden'], ['water_'], ['plant'], ['weed'], ['harvest']]),
+    ('play a game',      [['video_game'], ['play_game'], ['arcade'], ['chess'], ['darts']]),
+]
 
 # Console-command recipes for actions that are far more reliable as cheats than
 # as pushed interactions. {amount}/{level} are filled by the executor.
