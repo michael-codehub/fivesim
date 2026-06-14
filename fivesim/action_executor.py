@@ -6,7 +6,7 @@ import sims4.commands
 import sims4.resources
 from interactions.context import InteractionContext
 from interactions.priority import Priority
-from .ids import INTERACTION_GUIDS
+from .ids import INTERACTION_GUIDS, INTERACTION_AFFORDANCE_NAMES
 
 
 def _sim_instance(sim_id):
@@ -54,34 +54,78 @@ def execute_action(action):
     return {'ok': False, 'error': 'unknown_action_type: %s' % a_type}
 
 
-def _resolve_affordance(action):
-    name = action.get('interaction')
-    guid = INTERACTION_GUIDS.get(name) if name else None
-    if guid is None:
+def _obj_super_affordances(obj):
+    try:
+        return list(obj.super_affordances())
+    except Exception:
+        try:
+            return list(getattr(obj, '_super_affordances', ()) or ())
+        except Exception:
+            return []
+
+
+def find_object_affordance(name_sets):
+    """Scan every object on the lot for a super-affordance whose (lowercased)
+    name contains ALL fragments of any set in name_sets. Returns (obj, affordance,
+    affordance_name) — pushing the object's OWN affordance with the object as the
+    target is far more robust than a hardcoded GUID pushed onto the Sim."""
+    om = services.object_manager()
+    try:
+        objects = list(om.get_all())
+    except Exception:
+        objects = list(om.values()) if hasattr(om, 'values') else []
+    for frags in name_sets:
+        for obj in objects:
+            for aff in _obj_super_affordances(obj):
+                nm = getattr(aff, '__name__', '') or ''
+                low = nm.lower()
+                if all(f in low for f in frags):
+                    return obj, aff, nm
+    return None, None, None
+
+
+def _resolve_affordance_guid(name):
+    guid = INTERACTION_GUIDS.get(name)
+    if not guid:
         return None
     key = sims4.resources.get_resource_key(guid, sims4.resources.Types.INTERACTION)
     return services.affordance_manager().get(key)
-
-
-def _resolve_target(action, sim):
-    tgt_sim_id = action.get('target_sim_id')
-    if tgt_sim_id is not None:
-        tsi = services.sim_info_manager().get(int(tgt_sim_id))
-        return tsi.get_sim_instance() if tsi else None
-    obj_id = action.get('target_object_id')
-    if obj_id is not None:
-        return services.object_manager().get(int(obj_id))
-    return sim
 
 
 def _push_interaction(action):
     si, sim = _sim_instance(action['sim_id'])
     if sim is None:
         return {'ok': False, 'error': 'sim_not_instantiated'}
-    affordance = _resolve_affordance(action)
+    name = action.get('interaction')
+
+    # explicit target wins (e.g. a social interaction onto another Sim/object)
+    explicit_target = None
+    if action.get('target_sim_id') is not None:
+        tsi = services.sim_info_manager().get(int(action['target_sim_id']))
+        explicit_target = tsi.get_sim_instance() if tsi else None
+    elif action.get('target_object_id') is not None:
+        explicit_target = services.object_manager().get(int(action['target_object_id']))
+
+    affordance = None
+    target = explicit_target
+    aff_name = None
+
+    if explicit_target is None:
+        # primary path: find an object on the lot that PROVIDES a matching
+        # affordance, and push it on that object (correct target + real id).
+        name_sets = INTERACTION_AFFORDANCE_NAMES.get(name)
+        if name_sets:
+            target, affordance, aff_name = find_object_affordance(name_sets)
+
     if affordance is None:
-        return {'ok': False, 'error': 'affordance_not_found'}
-    target = _resolve_target(action, sim)
+        # fallback: hardcoded GUID pushed onto the resolved/own target
+        affordance = _resolve_affordance_guid(name)
+        if target is None:
+            target = sim
+
+    if affordance is None:
+        return {'ok': False, 'error': 'affordance_not_found', 'interaction': name}
+
     context = InteractionContext(
         sim,
         InteractionContext.SOURCE_SCRIPT_WITH_USER_INTENT,
@@ -90,5 +134,5 @@ def _push_interaction(action):
     try:
         result = sim.push_super_affordance(affordance, target, context)
     except Exception as e:
-        return {'ok': False, 'error': 'push_failed: %s' % e}
-    return {'ok': bool(result), 'mode': 'interaction', 'queued': bool(result)}
+        return {'ok': False, 'error': 'push_failed: %s' % e, 'affordance': aff_name}
+    return {'ok': bool(result), 'mode': 'interaction', 'affordance': aff_name, 'queued': bool(result)}

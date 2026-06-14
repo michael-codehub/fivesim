@@ -27,6 +27,7 @@ def fivesim_help(_connection=None):
     o('  fivesim.connect                    point the host at this game bridge')
     o('  fivesim.bridge                     force-start + health-check the game bridge')
     o('  fivesim.act <action>               test an action in-game (work/sleep/eat/shower/toilet)')
+    o('  fivesim.find <keyword>             list matching object interactions on the lot')
     o('  fivesim.start / fivesim.stop       start / stop the AI playing')
     o('  fivesim.status                     show host + engine status')
 
@@ -116,6 +117,33 @@ def fivesim_act(action='sleep', sim_id: int = None, _connection=None):
             o('  (if this fails, the in-game action layer is the problem, not the host)')
     except Exception as e:
         o('fivesim.act failed: %r' % e)
+
+
+@sims4.commands.Command('fivesim.find', command_type=sims4.commands.CommandType.Live)
+def fivesim_find(keyword='sleep', _connection=None):
+    """List object super-affordances on the lot whose name contains <keyword>.
+    Lets us discover the real interaction names for actuation."""
+    o = _out(_connection)
+    try:
+        from . import action_executor
+        om = services.object_manager()
+        try:
+            objects = list(om.get_all())
+        except Exception:
+            objects = list(om.values()) if hasattr(om, 'values') else []
+        seen = {}
+        for obj in objects:
+            for aff in action_executor._obj_super_affordances(obj):
+                nm = getattr(aff, '__name__', '') or ''
+                if keyword.lower() in nm.lower() and nm not in seen:
+                    seen[nm] = getattr(obj, 'definition', obj)
+        o('affordances containing "%s": %d' % (keyword, len(seen)))
+        for nm in list(seen.keys())[:25]:
+            o('  %s' % nm)
+        if not seen:
+            o('  (none — try another keyword: bed, toilet, shower, fridge, sink)')
+    except Exception as e:
+        o('fivesim.find failed: %r' % e)
 
 
 @sims4.commands.Command('fivesim.map', command_type=sims4.commands.CommandType.Live)

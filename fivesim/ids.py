@@ -19,6 +19,18 @@ INTERACTION_GUIDS = {
     'talk_to':        13998,   # social super affordance (needs a target sim)
 }
 
+# Robust actuation: instead of a fragile hardcoded interaction GUID pushed onto
+# the Sim, we scan the lot for an OBJECT that provides a super-affordance whose
+# name contains these fragments, and push it on that object (correct target).
+# Each value is a list of alternative fragment-sets, tried in order; the first
+# object/affordance that matches ALL fragments of a set wins.
+INTERACTION_AFFORDANCE_NAMES = {
+    'sleep_in_bed':   [['sleep'], ['nap']],
+    'eat_grab_quick': [['grab', 'plate'], ['grab', 'snack'], ['grab'], ['eat']],
+    'shower':         [['shower'], ['takebath'], ['bathe'], ['bath']],
+    'use_toilet':     [['toilet'], ['pee'], ['bladder'], ['use', 'standing']],
+}
+
 # Console-command recipes for actions that are far more reliable as cheats than
 # as pushed interactions. {amount}/{level} are filled by the executor.
 CONSOLE_RECIPES = {
