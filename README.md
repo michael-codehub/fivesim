@@ -46,24 +46,6 @@ That's it — the Sim now reads its own needs, asks its model what to do, and ac
 
 ---
 
-## 🇷🇺 Установка по-русски
-
-1. Скачай папку [`download/`](download/) (или весь репо: **Code → Download ZIP**).
-2. Содержимое [`download/Mods/`](download/Mods) **целиком** закинь в
-   `Documents\Electronic Arts\The Sims 4\Mods\` (там уже всё, включая S4CL).
-3. В игре включи обе галки: **Settings → Game Options → Other** →
-   **Custom Content and Mods** + **Script Mods Allowed** → **полный перезапуск игры**.
-4. Запусти **[`download/5imulites-Host.exe`](download/5imulites-Host.exe)** (он уже
-   в скачанной папке) → откроется окно приложения (с лого) → вставь ключ с
-   [openrouter.ai](https://openrouter.ai/settings/keys), выбери модель.
-5. Зайди в семью → в приложении **Load Sims from game** → назначь симов →
-   **Save & Start the AI**. (Или в игре **кликни по симу** → **5imulites: Let AI Play**.)
-
-Если что-то не работает: **Ctrl+Shift+C** → `fivesim.debug` — команда построчно
-покажет, какой слой сломан (S4CL / пакет кнопки / хост).
-
----
-
 ## 🕹️ Cheat-console fallback (works even without the button)
 
 Press **Ctrl + Shift + C**:
