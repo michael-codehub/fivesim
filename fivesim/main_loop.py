@@ -17,7 +17,15 @@ try:
 except Exception:
     pass
 
-_OWNER = object()        # keep a strong ref or the alarm gets GC-cancelled
+class _AlarmOwner:
+    """The alarm manager holds a WEAK reference to the owner, and a bare
+    object() can't be weakly referenced ('cannot create weak reference to
+    object'). A tiny class instance is weakref-able; we keep a strong ref to it
+    at module scope so the alarm isn't GC-cancelled."""
+    pass
+
+
+_OWNER = _AlarmOwner()
 _alarm = None
 _started = False
 _last_error = None       # surfaced by fivesim.status / fivesim.debug
