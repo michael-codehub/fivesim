@@ -154,6 +154,24 @@ def execute_action(action):
         except Exception as e:
             return {'ok': False, 'error': 'set_speed_failed: %s' % e}
 
+    if a_type == 'focus_camera':
+        # Point the in-game camera at a Sim, following it. Uses EA's camera module
+        # (camera.focus_on_sim(sim, follow, client)). Best-effort — never raises.
+        try:
+            import camera
+            si = services.sim_info_manager().get(int(action['sim_id']))
+            sim = si.get_sim_instance() if si is not None else None
+            if sim is None:
+                return {'ok': False, 'error': 'sim_not_instantiated'}
+            try:
+                client = services.client_manager().get_first_client()
+            except Exception:
+                client = None
+            camera.focus_on_sim(sim, bool(action.get('follow', True)), client)
+            return {'ok': True, 'mode': 'focus_camera'}
+        except Exception as e:
+            return {'ok': False, 'error': 'focus_camera_failed: %s' % e}
+
     if a_type == 'go_to_work':
         si, sim = _sim_instance(action['sim_id'])
         if si is None or si.career_tracker is None:

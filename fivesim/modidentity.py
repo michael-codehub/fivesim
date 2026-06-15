@@ -4,7 +4,7 @@
 from sims4communitylib.mod_support.common_mod_info import CommonModIdentity
 
 _NAME = '5imulites'
-_AUTHOR = 'akrosmoke'
+_AUTHOR = 'deadlyandro'
 _NAMESPACE = 'fivesim'
 _VERSION = '1.0.0'
 

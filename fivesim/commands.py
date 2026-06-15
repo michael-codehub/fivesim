@@ -119,6 +119,24 @@ def fivesim_act(action='sleep', sim_id: int = None, _connection=None):
         o('fivesim.act failed: %r' % e)
 
 
+@sims4.commands.Command('fivesim.cam', command_type=sims4.commands.CommandType.Live)
+def fivesim_cam(sim_id: int = None, _connection=None):
+    """Focus + follow the camera on a Sim (test the auto-camera). No sim_id = first household Sim."""
+    o = _out(_connection)
+    if not sim_id:
+        hh = services.active_household()
+        sims = list(hh.sim_info_gen()) if hh is not None else []
+        if not sims:
+            return o('no sims in household')
+        sim_id = sims[0].sim_id
+    try:
+        from . import action_executor
+        res = action_executor.execute_action({'type': 'focus_camera', 'sim_id': int(sim_id), 'follow': True})
+        o('fivesim.cam %s -> %s' % (sim_id, res))
+    except Exception as e:
+        o('fivesim.cam failed: %r' % e)
+
+
 @sims4.commands.Command('fivesim.speed', command_type=sims4.commands.CommandType.Live)
 def fivesim_speed(level=3, _connection=None):
     """Set game speed 0=pause 1=normal 2=fast 3=ultra (used to fast-forward long actions)."""
